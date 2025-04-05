@@ -23,16 +23,73 @@ Built for AI-driven tools, testing, and intelligent prompt integration.
 - 🎓 Rubric creation and re-use
 - 📤 View assignment submissions & outcomes
 - 🧠 Designed for Claude Desktop & Model Context clients
+---
+
+## 🏗 How to Register the Application in Entra ID (Azure AD)
+
+To use Microsoft Graph API with this project, you need to register an app in Entra ID:
+
+### 1. Go to Microsoft Entra Admin Center
+
+- Visit: [https://entra.microsoft.com](https://entra.microsoft.com)
+- Sign in with an admin account.
 
 ---
 
-## 📦 Installation & Dependencies
+### 2. Register a New Application
 
-```bash
-git clone https://github.com/your-username/your-repo.git
-cd your-repo
-npm install
+1. Navigate to **"Applications" → "App registrations"**
+2. Click **"New registration"**
+3. Fill in:
+   - **Name**: `Microsoft Education MCP Server` (or any name you prefer)
+   - **Supported account types**: Choose based on your scenario (usually "Accounts in this organizational directory only")
+   - **Redirect URI**:  
+     - Platform: `Web`  
+     - URI: `http://localhost:3000/auth/callback` (or your custom URI)
 
-# If starting fresh, install these dependencies manually:
-npm install @modelcontextprotocol/sdk axios zod dotenv @azure/msal-node
+4. Click **"Register"**
 
+---
+
+### 3. Configure API Permissions
+
+1. After registration, go to **"API permissions"**
+2. Click **"Add a permission" → Microsoft Graph → Delegated permissions**
+3. Add the following:
+   - `User.ReadWrite.All`
+   - `EduAssignments.ReadWrite.All`
+   - `EduRoster.ReadWrite.All`
+   - `EduRubrics.ReadWrite`
+   - `offline_access`
+   - `openid`
+   - `profile`
+
+4. Click **"Grant admin consent"** to approve them for your tenant.
+
+---
+
+### 4. Generate a Client Secret
+
+1. Go to **"Certificates & secrets"**
+2. Under **Client secrets**, click **"New client secret"**
+3. Add a description and choose an expiration (e.g. 6 months or 12 months)
+4. Click **"Add"**
+5. **Copy the value** — you won’t be able to see it again!
+
+---
+
+### 5. Save These Values in a notepad
+
+After registration, go to **"Overview"** and copy these values:
+
+```env
+CLIENT_ID=your-application-id
+CLIENT_SECRET=your-client-secret
+TENANT_ID=your-directory-id
+REDIRECT_URI=http://localhost:3000/auth/callback
+```
+
+
+
+
+   
