@@ -169,11 +169,13 @@ Claude will automatically detect the MCP Server and the registered tools.
 
 As soon as you request data, an authentication flow will be started. You can always trigger it manually by calling auth-login. I've noticed that Claude not always give you the url, you can find, and copy it from the call it makes to the authentication server if needed. [Fix in progress]
 
+---
+
+
 ## 🧠 Scenario: Remediation Flow for Underperforming Students
 
 This is a structured walkthrough based on original prompts for data analysis and follow-up instruction.
 
----
 
 ### 📝 Original Prompts
 
