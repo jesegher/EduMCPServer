@@ -1,7 +1,7 @@
 {
   "name": "mcp-graph-api-server",
   "version": "1.0.0",
-  "description": "MCP Server for Microsoft Graph API access",
+  "description": "MCP Server for Microsoft Education Data",
   "main": "start-mcp-server.js",
   "scripts": {
     "start": "node start-mcp-server.js"
