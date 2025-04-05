@@ -10,6 +10,9 @@ const { z } = require('zod'); // Add this for parameter validation
 const { Console } = require('console');
 
 const registerAssignmentTools = require('./Tools/assignment.js');
+const registerRubricTools = require('./Tools/rubric.js');
+const registerClassTools = require('./Tools/class.js');
+
 
 let accessToken = null;
 let isAuthenticated = false;
@@ -44,14 +47,21 @@ async function createMCPServer() {
   
   
   // Register your assignment tools
-  console.error("📝 Registering assignment tools...");
-
+  
   const auth = {
     accessToken: null,
     isAuthenticated: false
   };
 
+  console.error("📝 Registering assignment tools...");
+
   registerAssignmentTools(server, auth);
+
+  console.error("📝 Registering rubric tools...");
+  registerRubricTools(server, auth);
+
+  console.error("📝 Registering class tools...");
+  registerClassTools(server, auth);
 
   // Register tools with the new API
   server.tool(
@@ -116,217 +126,7 @@ async function createMCPServer() {
     }
   );
   
-  server.tool(
-    "class_get",
-    {
-      classId: z.string().optional().describe("Optional: The ID of the class to retrieve"),
-      search: z.string().optional().describe("Optional: Filter classes by display name (contains match)")
-    },
-    async ({ classId, search }) => {
-      console.error("📚 class.list tool called");
   
-      if (!isAuthenticated) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: "User not authenticated. Please use the microsoft-login tool first."
-            })
-          }]
-        };
-      }
-  
-      try {
-        let classes = [];
-  
-        if (classId) {
-          // 🔎 Get a single class by ID
-          const res = await axios.get(
-            `https://graph.microsoft.com/v1.0/education/classes/${classId}`,
-            {
-              headers: { Authorization: `Bearer ${accessToken}` },
-              timeout: 5000
-            }
-          );
-          classes = [res.data];
-        } else {
-          // 📋 Get all classes
-          const res = await axios.get(
-            `https://graph.microsoft.com/v1.0/education/me/classes`,
-            {
-              headers: { Authorization: `Bearer ${accessToken}` },
-              timeout: 5000
-            }
-          );
-          classes = res.data.value;
-  
-          // 🔍 Optional: Filter by search string
-          if (search) {
-            const lowerSearch = search.toLowerCase();
-            classes = classes.filter(cls =>
-              cls.displayName?.toLowerCase().includes(lowerSearch)
-            );
-          }
-        }
-  
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "success",
-              classes: classes.map(cls => ({
-                id: cls.id,
-                displayName: cls.displayName
-              }))
-            })
-          }]
-        };
-      } catch (error) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: `Error fetching class details: ${error.message}`
-            })
-          }]
-        };
-      }
-    },
-    {
-      description: "Lists classes. Supports retrieving all classes, a specific class by ID or filtering by display name."
-    }
-  );
-  
-  server.tool(
-    "rubric-create-get",
-    {
-      displayName: z.string().describe("The display name of the rubric"),
-      maxPoints: z.number().describe("The maximum number of points the rubric is worth"),
-      qualities: z.array(z.object({
-        description: z.object({
-          content: z.string(),
-          contentType: z.string()
-        }),
-        criteria: z.array(z.object({
-          description: z.object({
-            content: z.string(),
-            contentType: z.string()
-          })
-        }))
-      }))
-    },
-    async ({ displayName, maxPoints, qualities }) => {
-      console.error("🔁 create-or-get-rubric tool called");
-  
-      if (!isAuthenticated) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: "❌ User not authenticated. Please use the microsoft-login tool first."
-            })
-          }]
-        };
-      }
-  
-      try {
-        // Step 1: Check for existing rubric
-        const checkRes = await axios.get(
-          `https://graph.microsoft.com/v1.0/education/me/rubrics?$filter=displayName eq '${displayName.replace(/'/g, "''")}'`,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            timeout: 5000
-          }
-        );
-  
-        const existing = checkRes.data?.value?.[0];
-  
-        if (existing) {
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                status: "exists",
-                message: "ℹ️ Rubric already exists. Returning existing rubric.",
-                rubricId: existing.id,
-                rubric: existing
-              })
-            }]
-          };
-        }
-  
-        // Step 2: Build levels
-        const levels = qualities[0].criteria.map((_, index) => ({
-          displayName: `Level ${index + 1}`,
-          description: {
-            content: "",
-            contentType: "text"
-          }
-        }));
-  
-        // Step 3: Create new rubric
-        const rubricPayload = {
-          displayName,
-          description: {
-            content: `Rubric worth ${maxPoints} points`,
-            contentType: "text"
-          },
-          levels,
-          qualities,
-          grading: {
-            "@odata.type": "#microsoft.graph.educationAssignmentPointsGradeType",
-            maxPoints
-          }
-        };
-  
-        const createRes = await axios.post(
-          `https://graph.microsoft.com/v1.0/education/me/rubrics`,
-          rubricPayload,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            timeout: 5000
-          }
-        );
-  
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "created",
-              message: "✅ Rubric created successfully.",
-              rubricId: createRes.data.id,
-              rubric: createRes.data
-            })
-          }]
-        };
-      } catch (error) {
-        let errorMessage = "Unknown error occurred";
-        if (error.response) {
-          errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
-        } else if (error.request) {
-          errorMessage = "Network error: No response received from server";
-        } else {
-          errorMessage = `Request error: ${error.message}`;
-        }
-  
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: errorMessage
-            })
-          }]
-        };
-      }
-    },
-    {
-      description: "Creates a rubric if one doesn't already exist with the same display name. Prevents duplication and returns the existing rubric if found."
-    }
-  );
   
   server.tool(
     "user-get",
