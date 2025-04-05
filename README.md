@@ -88,6 +88,51 @@ CLIENT_SECRET=your-client-secret
 TENANT_ID=your-directory-id
 REDIRECT_URI=http://localhost:3000/auth/callback
 ```
+---
+
+## 📥 Clone the Repository and Install Dependencies
+
+Follow these steps to get the project running locally:
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/your-username/your-repo.git
+cd your-repo
+```
+### 2. Install dependencies
+```bash
+npm install
+```
+or manually
+```bash
+npm install @modelcontextprotocol/sdk axios zod dotenv @azure/msal-node
+```
+
+## 🧠 Run with Claude Desktop
+
+To use this MCP server with Claude Desktop, add the following to your Claude Desktop `claude.settings.json` file:
+
+```json
+{
+  "mcpServers": {
+    "Education-Data": {
+      "command": "node",
+      "args": [
+        "C:\\path\\to\\your\\project\\start-mcp-server.js"
+      ],
+      "env": {
+        "TENANT_ID": "your-tenant-id",
+        "CLIENT_ID": "your-client-id",
+        "CLIENT_SECRET": "your-client-secret",
+        "REDIRECT_URI": "http://localhost:3000/auth/callback",
+        "PORT": "3000"
+      }
+    }
+  }
+}
+```
+💡 Replace the path and environment variables with your actual configuration details.
 
 
 
