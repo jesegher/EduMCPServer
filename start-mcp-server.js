@@ -207,15 +207,15 @@ async function createMCPServer() {
     "get-assignment-details",
     {
       classId: z.string().describe("The ID of the class to get assignments from"),
-      assignmentId: z.string().describe("The ID of the assignment to get details for"),           
+      assignmentId: z.string().describe("The ID of the assignment to get details for")
     },
     async ({ classId, assignmentId }) => {
       console.error("📝 get-assignment-details tool called");
-      
+  
       if (!isAuthenticated) {
-        return { 
-          content: [{ 
-            type: "text", 
+        return {
+          content: [{
+            type: "text",
             text: JSON.stringify({
               status: "error",
               message: "User not authenticated. Please use the microsoft-login tool first."
@@ -223,42 +223,57 @@ async function createMCPServer() {
           }]
         };
       }
-
+  
       try {
-        // Get details for the specified assignment
-        const detailsRes = await axios.get(
-          `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments/${assignmentId}`, 
+        const assignmentRes = await axios.get(
+          `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments/${assignmentId}`,
           {
             headers: { Authorization: `Bearer ${accessToken}` },
             timeout: 5000
           }
         );
-        
+  
+        const assignment = assignmentRes.data;
+        let rubric = null;
+  
+        if (!assignment.grading) {
+          try {
+            const rubricRes = await axios.get(
+              `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments/${assignmentId}/rubric`,
+              {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                timeout: 5000
+              }
+            );
+            rubric = rubricRes.data;
+          } catch (rubricError) {
+            if (rubricError.response?.status !== 404) {
+              console.warn("⚠️ Rubric fetch failed", rubricError.message);
+            }
+          }
+        }
+  
         return {
           content: [{
             type: "text",
             text: JSON.stringify({
               status: "success",
-              assignmentDetails: detailsRes.data
+              assignmentDetails: assignment,
+              rubric: rubric || null
             })
           }]
         };
       } catch (error) {
-        // More specific error handling
         let errorMessage = "Unknown error occurred";
-        
+  
         if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
           errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
         } else if (error.request) {
-          // The request was made but no response was received
           errorMessage = "Network error: No response received from server";
         } else {
-          // Something happened in setting up the request that triggered an Error
           errorMessage = `Request error: ${error.message}`;
         }
-        
+  
         return {
           content: [{
             type: "text",
@@ -269,77 +284,12 @@ async function createMCPServer() {
           }]
         };
       }
-    }
-  );
-
-  server.tool(
-    "get-assignment-rubric",
-    {
-      classId: z.string().describe("The ID of the class to get assignments from"),
-      assignmentId: z.string().describe("The ID of the assignment to get details for"),           
     },
-    async ({ classId, assignmentId }) => {
-      console.error("📝 get-assignment-rubric tool called");
-      
-      if (!isAuthenticated) {
-        return { 
-          content: [{ 
-            type: "text", 
-            text: JSON.stringify({
-              status: "error",
-              message: "User not authenticated. Please use the microsoft-login tool first."
-            })
-          }]
-        };
-      }
-
-      try {
-        // Get details for the specified assignment
-        const detailsRes = await axios.get(
-          `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments/${assignmentId}/rubric`, 
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            timeout: 5000
-          }
-        );
-        
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "success",
-              assignmentDetails: detailsRes.data
-            })
-          }]
-        };
-      } catch (error) {
-        // More specific error handling
-        let errorMessage = "Unknown error occurred";
-        
-        if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
-          errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
-        } else if (error.request) {
-          // The request was made but no response was received
-          errorMessage = "Network error: No response received from server";
-        } else {
-          // Something happened in setting up the request that triggered an Error
-          errorMessage = `Request error: ${error.message}`;
-        }
-        
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: errorMessage
-            })
-          }]
-        };
-      }
+    {
+      description: "Fetches the details of a specific assignment. If grading is not defined, it attempts to retrieve the associated rubric and includes it in the response."
     }
   );
+  
 
   server.tool(
     "get-assignment-submissions",
@@ -487,7 +437,10 @@ async function createMCPServer() {
       displayName: z.string().describe("The display name of the assignment"),
       dueDateTime: z.string().describe("The due date and time for the assignment in ISO format"),
       instructions: z.string().optional().describe("Optional: The instructions for the assignment"),
-      status: z.string().optional().default("draft").describe("Optional: Status of the assignment (draft, published)"),
+      assignTo: z.object({
+        "@odata.type": z.string().describe("The type of recipient (e.g., #microsoft.graph.educationAssignmentClassRecipient, #microsoft.graph.educationAssignmentIndividualRecipient)"),
+        recipients: z.array(z.string()).optional().describe("Optional: Student IDs to assign the assignment to (required if using IndividualRecipient)")
+      }).optional().describe("Optional: Specify which students to assign to. Default is the whole class"),
       allowLateSubmissions: z.boolean().optional().describe("Optional: Whether late submissions are allowed"),
       allowStudentsToAddResourcesToSubmission: z.boolean().optional().describe("Optional: Whether students can add resources to their submission"),
       assignDateTime: z.string().optional().describe("Optional: The date when the assignment should be assigned"),
@@ -507,7 +460,7 @@ async function createMCPServer() {
       displayName, 
       dueDateTime, 
       instructions, 
-      status,
+      assignTo,
       allowLateSubmissions,
       allowStudentsToAddResourcesToSubmission,
       assignDateTime,
@@ -538,7 +491,11 @@ async function createMCPServer() {
         const assignmentPayload = {
           displayName,
           dueDateTime,
-          status: status || "draft"
+          status: "draft"
+        };
+        
+        assignmentPayload.assignTo = assignTo || {
+          "@odata.type": "#microsoft.graph.educationAssignmentClassRecipient"
         };
         
        
@@ -698,8 +655,6 @@ async function createMCPServer() {
           }
         );
        
-        console.error(assignmentPayload);    
-
         return {
           content: [{
             type: "text",
@@ -733,6 +688,207 @@ async function createMCPServer() {
       }
     }
   );
+
+  //Attach rubric to assignment
+  server.tool(
+    "attach-rubric-to-assignment",
+    {
+      classId: z.string().describe("The ID of the class that contains the assignment"),
+      assignmentId: z.string().describe("The ID of the assignment to attach the rubric to"),
+      rubricId: z.string().describe("The ID of the rubric to attach to the assignment")
+    },
+    async ({ classId, assignmentId, rubricId }) => {
+      console.error("📎 attach-rubric-to-assignment tool called");
+  
+      if (!isAuthenticated) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              status: "error",
+              message: "User not authenticated. Please use the microsoft-login tool first."
+            })
+          }]
+        };
+      }
+  
+      try {
+        const odataRef = {
+          "@odata.id": `https://graph.microsoft.com/v1.0/education/me/rubrics/${rubricId}`
+        };
+  
+        const response = await axios.put(
+          `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments/${assignmentId}/rubric/$ref`,
+          odataRef,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            timeout: 5000
+          }
+        );
+  
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              status: "success",
+              message: "Rubric attached successfully.",
+              result: response.data
+            })
+          }]
+        };
+      } catch (error) {
+        let errorMessage = "Unknown error occurred";
+  
+        if (error.response) {
+          errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
+        } else if (error.request) {
+          errorMessage = "Network error: No response received from server";
+        } else {
+          errorMessage = `Request error: ${error.message}`;
+        }
+  
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              status: "error",
+              message: errorMessage
+            })
+          }]
+        };
+      }
+    }
+  );
+  
+  server.tool(
+    "create-or-get-rubric",
+    {
+      displayName: z.string().describe("The display name of the rubric"),
+      maxPoints: z.number().describe("The maximum number of points the rubric is worth"),
+      qualities: z.array(z.object({
+        description: z.object({
+          content: z.string(),
+          contentType: z.string()
+        }),
+        criteria: z.array(z.object({
+          description: z.object({
+            content: z.string(),
+            contentType: z.string()
+          })
+        }))
+      }))
+    },
+    async ({ displayName, maxPoints, qualities }) => {
+      console.error("🔁 create-or-get-rubric tool called");
+  
+      if (!isAuthenticated) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              status: "error",
+              message: "❌ User not authenticated. Please use the microsoft-login tool first."
+            })
+          }]
+        };
+      }
+  
+      try {
+        // Step 1: Check for existing rubric
+        const checkRes = await axios.get(
+          `https://graph.microsoft.com/v1.0/education/me/rubrics?$filter=displayName eq '${displayName.replace(/'/g, "''")}'`,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            timeout: 5000
+          }
+        );
+  
+        const existing = checkRes.data?.value?.[0];
+  
+        if (existing) {
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                status: "exists",
+                message: "ℹ️ Rubric already exists. Returning existing rubric.",
+                rubricId: existing.id,
+                rubric: existing
+              })
+            }]
+          };
+        }
+  
+        // Step 2: Build levels
+        const levels = qualities[0].criteria.map((_, index) => ({
+          displayName: `Level ${index + 1}`,
+          description: {
+            content: "",
+            contentType: "text"
+          }
+        }));
+  
+        // Step 3: Create new rubric
+        const rubricPayload = {
+          displayName,
+          description: {
+            content: `Rubric worth ${maxPoints} points`,
+            contentType: "text"
+          },
+          levels,
+          qualities,
+          grading: {
+            "@odata.type": "#microsoft.graph.educationAssignmentPointsGradeType",
+            maxPoints
+          }
+        };
+  
+        const createRes = await axios.post(
+          `https://graph.microsoft.com/v1.0/education/me/rubrics`,
+          rubricPayload,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            timeout: 5000
+          }
+        );
+  
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              status: "created",
+              message: "✅ Rubric created successfully.",
+              rubricId: createRes.data.id,
+              rubric: createRes.data
+            })
+          }]
+        };
+      } catch (error) {
+        let errorMessage = "Unknown error occurred";
+        if (error.response) {
+          errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
+        } else if (error.request) {
+          errorMessage = "Network error: No response received from server";
+        } else {
+          errorMessage = `Request error: ${error.message}`;
+        }
+  
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              status: "error",
+              message: errorMessage
+            })
+          }]
+        };
+      }
+    },
+    {
+      description: "Creates a rubric if one doesn't already exist with the same display name. Prevents duplication and returns the existing rubric if found."
+    }
+  );
+  
 
   // Register prompts
   server.prompt(
