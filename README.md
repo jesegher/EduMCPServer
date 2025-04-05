@@ -135,3 +135,10 @@ To use this MCP server with Claude Desktop, add the following to your Claude Des
 💡 Replace the path and environment variables with your actual configuration details.
 
 ⚠️ Make sure to shutdown Claude every time you make a change. You need to kill it in the task manager. 
+
+Claude will automatically detect the MCP Server and the registered tools.
+
+<img width="362" alt="image" src="https://github.com/user-attachments/assets/924c9da6-0e0b-4c5d-9927-c74517702a5c" />
+
+As soon as you request data, an authentication flow will be started. You can always trigger it manually by calling auth-login. I've noticed that Claude not always give you the url, you can find, and copy it from the call it makes to the authentication server if needed. [Fix in progress]
+
