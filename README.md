@@ -134,7 +134,4 @@ To use this MCP server with Claude Desktop, add the following to your Claude Des
 ```
 💡 Replace the path and environment variables with your actual configuration details.
 
-
-
-
-   
+⚠️ Make sure to shutdown Claude every time you make a change. You need to kill it in the task manager. 
