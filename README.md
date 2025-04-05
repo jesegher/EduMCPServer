@@ -24,6 +24,33 @@ Built for AI-driven tools, testing, and intelligent prompt integration.
 - 📤 View assignment submissions & outcomes
 - 🧠 Designed for Claude Desktop & Model Context clients
 ---
+## 📂 Structure
+### 🔍 Key Components
+
+- **`start-mcp-server.js`**
+  - Loads and registers all tools.
+  - Manages Microsoft authentication via MSAL.
+  - Starts the MCP server using the Model Context Protocol SDK.
+
+- **`tools/` folder**
+  - Each file defines a set of related tools and registers them with the server.
+  - Tools follow the MCP standard (`server.tool(...)`) with Zod schema validation and Microsoft Graph integration.
+
+- **`.env`**
+  - Stores sensitive Microsoft app credentials and config.
+  - Required to authenticate with Microsoft Graph API.
+
+- **`Example.env`**
+  - A safe template for sharing or onboarding collaborators.
+
+---
+
+This layout makes it easy to:
+- Add or modify functionality (just add a file in `tools/`)
+- Keep logic separated by domain (e.g., assignments vs rubrics)
+- Support clean and scalable MCP integration
+
+---
 
 ## 🏗 How to Register the Application in Entra ID (Azure AD)
 
