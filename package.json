@@ -1,0 +1,16 @@
+{
+  "name": "mcp-graph-api-server",
+  "version": "1.0.0",
+  "description": "MCP Server for Microsoft Graph API access",
+  "main": "start-mcp-server.js",
+  "scripts": {
+    "start": "node start-mcp-server.js"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^1.18.0",
+    "@modelcontextprotocol/sdk": "^1.8.0",
+    "axios": "^1.6.2",
+    "dotenv": "^16.4.7",
+    "express": "^4.18.2"
+  }
+}
