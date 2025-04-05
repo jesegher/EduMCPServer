@@ -9,6 +9,8 @@ const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio
 const { z } = require('zod'); // Add this for parameter validation
 const { Console } = require('console');
 
+const registerAssignmentTools = require('./Tools/assignment.js');
+
 let accessToken = null;
 let isAuthenticated = false;
 
@@ -35,14 +37,25 @@ async function createMCPServer() {
     version: "1.0.0" 
   });
 
-  // Create a transport
+    // Create a transport
   const transport = new StdioServerTransport();
   
   console.error("📝 Registering tools...");
   
+  
+  // Register your assignment tools
+  console.error("📝 Registering assignment tools...");
+
+  const auth = {
+    accessToken: null,
+    isAuthenticated: false
+  };
+
+  registerAssignmentTools(server, auth);
+
   // Register tools with the new API
   server.tool(
-    "microsoft-login",
+    "auth-login",
     {}, // Empty schema for no parameters
     async () => {
       console.error("🔑 microsoft-login tool called");
@@ -83,11 +96,12 @@ async function createMCPServer() {
   );
   
   server.tool(
-    "get-auth-status",
+    "auth-status-get",
     {}, // Empty schema for no parameters
     async () => {
       console.error("🔍 get-auth-status tool called");
       console.error(accessToken);
+      
       return { 
         content: [{ 
           type: "text", 
@@ -102,17 +116,19 @@ async function createMCPServer() {
     }
   );
   
-  // CONVERTED: class-details resource to list-classes tool
   server.tool(
-    "list-classes",
-    {}, // Empty schema for no parameters
-    async () => {
-      console.error("📚 list-classes tool called");
-      
+    "class_get",
+    {
+      classId: z.string().optional().describe("Optional: The ID of the class to retrieve"),
+      search: z.string().optional().describe("Optional: Filter classes by display name (contains match)")
+    },
+    async ({ classId, search }) => {
+      console.error("📚 class.list tool called");
+  
       if (!isAuthenticated) {
-        return { 
-          content: [{ 
-            type: "text", 
+        return {
+          content: [{
+            type: "text",
             text: JSON.stringify({
               status: "error",
               message: "User not authenticated. Please use the microsoft-login tool first."
@@ -120,19 +136,46 @@ async function createMCPServer() {
           }]
         };
       }
-      
+  
       try {
-        const res = await axios.get('https://graph.microsoft.com/v1.0/education/me/classes', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          timeout: 5000
-        });
-        
+        let classes = [];
+  
+        if (classId) {
+          // 🔎 Get a single class by ID
+          const res = await axios.get(
+            `https://graph.microsoft.com/v1.0/education/classes/${classId}`,
+            {
+              headers: { Authorization: `Bearer ${accessToken}` },
+              timeout: 5000
+            }
+          );
+          classes = [res.data];
+        } else {
+          // 📋 Get all classes
+          const res = await axios.get(
+            `https://graph.microsoft.com/v1.0/education/me/classes`,
+            {
+              headers: { Authorization: `Bearer ${accessToken}` },
+              timeout: 5000
+            }
+          );
+          classes = res.data.value;
+  
+          // 🔍 Optional: Filter by search string
+          if (search) {
+            const lowerSearch = search.toLowerCase();
+            classes = classes.filter(cls =>
+              cls.displayName?.toLowerCase().includes(lowerSearch)
+            );
+          }
+        }
+  
         return {
           content: [{
             type: "text",
             text: JSON.stringify({
               status: "success",
-              classes: res.data.value.map(cls => ({
+              classes: classes.map(cls => ({
                 id: cls.id,
                 displayName: cls.displayName
               }))
@@ -150,618 +193,14 @@ async function createMCPServer() {
           }]
         };
       }
-    }
-  );
-  
-  server.tool(
-    "list-assignments",
-    {}, // Empty schema for no parameters
-    async () => {
-      console.error("📝 list-assignments tool called");
-      
-      if (!isAuthenticated) {
-        return { 
-          content: [{ 
-            type: "text", 
-            text: JSON.stringify({
-              status: "error",
-              message: "User not authenticated. Please use the microsoft-login tool first."
-            })
-          }]
-        };
-      }
-      
-      try {
-        const res = await axios.get('https://graph.microsoft.com/v1.0/education/me/assignments', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          timeout: 5000
-        });
-        
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "success",
-              assignments: res.data.value.map(assignment => ({
-                id: assignment.id,
-                displayName: assignment.displayName
-              }))
-            })
-          }]
-        };
-      } catch (error) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: `Error fetching assignments: ${error.message}`
-            })
-          }]
-        };
-      }
-    }
-  );
-  
-  server.tool(
-    "get-assignment-details",
-    {
-      classId: z.string().describe("The ID of the class to get assignments from"),
-      assignmentId: z.string().describe("The ID of the assignment to get details for")
-    },
-    async ({ classId, assignmentId }) => {
-      console.error("📝 get-assignment-details tool called");
-  
-      if (!isAuthenticated) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: "User not authenticated. Please use the microsoft-login tool first."
-            })
-          }]
-        };
-      }
-  
-      try {
-        const assignmentRes = await axios.get(
-          `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments/${assignmentId}`,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            timeout: 5000
-          }
-        );
-  
-        const assignment = assignmentRes.data;
-        let rubric = null;
-  
-        if (!assignment.grading) {
-          try {
-            const rubricRes = await axios.get(
-              `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments/${assignmentId}/rubric`,
-              {
-                headers: { Authorization: `Bearer ${accessToken}` },
-                timeout: 5000
-              }
-            );
-            rubric = rubricRes.data;
-          } catch (rubricError) {
-            if (rubricError.response?.status !== 404) {
-              console.warn("⚠️ Rubric fetch failed", rubricError.message);
-            }
-          }
-        }
-  
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "success",
-              assignmentDetails: assignment,
-              rubric: rubric || null
-            })
-          }]
-        };
-      } catch (error) {
-        let errorMessage = "Unknown error occurred";
-  
-        if (error.response) {
-          errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
-        } else if (error.request) {
-          errorMessage = "Network error: No response received from server";
-        } else {
-          errorMessage = `Request error: ${error.message}`;
-        }
-  
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: errorMessage
-            })
-          }]
-        };
-      }
     },
     {
-      description: "Fetches the details of a specific assignment. If grading is not defined, it attempts to retrieve the associated rubric and includes it in the response."
-    }
-  );
-  
-
-  server.tool(
-    "get-assignment-submissions",
-    {
-      classId: z.string().describe("The ID of the class to get assignments from"),
-      assignmentId: z.string().describe("The ID of the assignment to get details for"),           
-    },
-    async ({ classId, assignmentId }) => {
-      console.error("📝 get-assignment-rubric tool called");
-      
-      if (!isAuthenticated) {
-        return { 
-          content: [{ 
-            type: "text", 
-            text: JSON.stringify({
-              status: "error",
-              message: "User not authenticated. Please use the microsoft-login tool first."
-            })
-          }]
-        };
-      }
-
-      try {
-        // Get details for the specified assignment
-        const detailsRes = await axios.get(
-          `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments/${assignmentId}/submissions`, 
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            timeout: 5000
-          }
-        );
-        
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "success",
-              assignmentDetails: detailsRes.data
-            })
-          }]
-        };
-      } catch (error) {
-        // More specific error handling
-        let errorMessage = "Unknown error occurred";
-        
-        if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
-          errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
-        } else if (error.request) {
-          // The request was made but no response was received
-          errorMessage = "Network error: No response received from server";
-        } else {
-          // Something happened in setting up the request that triggered an Error
-          errorMessage = `Request error: ${error.message}`;
-        }
-        
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: errorMessage
-            })
-          }]
-        };
-      }
-    }
-  );
-
-  server.tool(
-    "get-assignment-submissions-outcome",
-    {
-      classId: z.string().describe("The ID of the class to get assignments from"),
-      assignmentId: z.string().describe("The ID of the assignment to get details for"),           
-      submissionId: z.string().describe("The ID of the submission to get outcome for"),           
-    },
-    async ({ classId, assignmentId,submissionId }) => {
-      console.error("📝 get-assignment-rubric tool called");
-      
-      if (!isAuthenticated) {
-        return { 
-          content: [{ 
-            type: "text", 
-            text: JSON.stringify({
-              status: "error",
-              message: "User not authenticated. Please use the microsoft-login tool first."
-            })
-          }]
-        };
-      }
-
-      try {
-        // Get details for the specified assignment
-        const detailsRes = await axios.get(
-          `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments/${assignmentId}/submissions/${submissionId}/outcomes`, 
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            timeout: 5000
-          }
-        );
-        
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "success",
-              assignmentDetails: detailsRes.data
-            })
-          }]
-        };
-      } catch (error) {
-        // More specific error handling
-        let errorMessage = "Unknown error occurred";
-        
-        if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
-          errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
-        } else if (error.request) {
-          // The request was made but no response was received
-          errorMessage = "Network error: No response received from server";
-        } else {
-          // Something happened in setting up the request that triggered an Error
-          errorMessage = `Request error: ${error.message}`;
-        }
-        
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: errorMessage
-            })
-          }]
-        };
-      }
+      description: "Lists classes. Supports retrieving all classes, a specific class by ID or filtering by display name."
     }
   );
   
   server.tool(
-    "create-assignment",
-    {
-      classId: z.string().describe("The ID of the class to create the assignment in"),
-      displayName: z.string().describe("The display name of the assignment"),
-      dueDateTime: z.string().describe("The due date and time for the assignment in ISO format"),
-      instructions: z.string().optional().describe("Optional: The instructions for the assignment"),
-      assignTo: z.object({
-        "@odata.type": z.string().describe("The type of recipient (e.g., #microsoft.graph.educationAssignmentClassRecipient, #microsoft.graph.educationAssignmentIndividualRecipient)"),
-        recipients: z.array(z.string()).optional().describe("Optional: Student IDs to assign the assignment to (required if using IndividualRecipient)")
-      }).optional().describe("Optional: Specify which students to assign to. Default is the whole class"),
-      allowLateSubmissions: z.boolean().optional().describe("Optional: Whether late submissions are allowed"),
-      allowStudentsToAddResourcesToSubmission: z.boolean().optional().describe("Optional: Whether students can add resources to their submission"),
-      assignDateTime: z.string().optional().describe("Optional: The date when the assignment should be assigned"),
-      addedStudentAction: z.string().optional().describe("Optional: Action to take when students are added to the class"),
-      addToCalendarAction: z.string().optional().describe("Optional: Whether to add the assignment to student calendars"),
-      grading: z.object({
-        "@odata.type": z.string().default("#microsoft.graph.educationAssignmentPointsGradeType"),
-        maxPoints: z.number()
-      }).optional().describe("Optional: Grading type and parameters for the assignment"),
-      feedbackResourcesFolderUrl: z.string().optional().describe("Optional: URL for feedback resources folder"),
-      notificationChannelUrl: z.string().optional().describe("Optional: URL for notification channel"),
-      resourcesFolderUrl: z.string().optional().describe("Optional: URL for resources folder"),
-      categories: z.array(z.string()).optional().describe("Optional: Categories for the assignment")
-    },
-    async ({ 
-      classId, 
-      displayName, 
-      dueDateTime, 
-      instructions, 
-      assignTo,
-      allowLateSubmissions,
-      allowStudentsToAddResourcesToSubmission,
-      assignDateTime,
-      addedStudentAction,
-      addToCalendarAction,
-      grading,
-      feedbackResourcesFolderUrl,
-      notificationChannelUrl,
-      resourcesFolderUrl,
-      categories
-    }) => {
-      console.error("📝 create-assignment tool called");
-     
-      if (!isAuthenticated) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: "User not authenticated. Please use the microsoft-login tool first."
-            })
-          }]
-        };
-      }
-      
-      try {
-        // Create base payload with required fields
-        const assignmentPayload = {
-          displayName,
-          dueDateTime,
-          status: "draft"
-        };
-        
-        assignmentPayload.assignTo = assignTo || {
-          "@odata.type": "#microsoft.graph.educationAssignmentClassRecipient"
-        };
-        
-       
-        // Add optional fields if provided
-        if (instructions) {
-          assignmentPayload.instructions = {
-            contentType: "text",
-            content: instructions
-          };
-        }
-        
-        if (allowLateSubmissions !== undefined) {
-          assignmentPayload.allowLateSubmissions = allowLateSubmissions;
-        }
-        
-        if (allowStudentsToAddResourcesToSubmission !== undefined) {
-          assignmentPayload.allowStudentsToAddResourcesToSubmission = allowStudentsToAddResourcesToSubmission;
-        }
-        
-        if (assignDateTime) {
-          assignmentPayload.assignDateTime = assignDateTime;
-        }
-        
-        if (addedStudentAction) {
-          assignmentPayload.addedStudentAction = addedStudentAction;
-        }
-        
-        if (addToCalendarAction) {
-          assignmentPayload.addToCalendarAction = addToCalendarAction;
-        }
-        
-        if (grading) {
-          assignmentPayload.grading = grading;
-        }
-        
-        if (feedbackResourcesFolderUrl) {
-          assignmentPayload.feedbackResourcesFolderUrl = feedbackResourcesFolderUrl;
-        }
-        
-        if (notificationChannelUrl) {
-          assignmentPayload.notificationChannelUrl = notificationChannelUrl;
-        }
-        
-        if (resourcesFolderUrl) {
-          assignmentPayload.resourcesFolderUrl = resourcesFolderUrl;
-        }
-        
-        if (categories && categories.length > 0) {
-          assignmentPayload.categories = categories;
-        }
-        
-        // Create the assignment
-        const createRes = await axios.post(
-          `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments`,
-          assignmentPayload,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            timeout: 5000
-          }
-        );
-       
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "success",
-              assignmentDetails: createRes.data
-            })
-          }]
-        };
-      } catch (error) {
-        // Error handling
-        let errorMessage = "Unknown error occurred";
-       
-        if (error.response) {
-          errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
-        } else if (error.request) {
-          errorMessage = "Network error: No response received from server";
-        } else {
-          errorMessage = `Request error: ${error.message}`;
-        }
-       
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: errorMessage
-            })
-          }]
-        };
-      }
-    }
-  );
-
-  server.tool(
-    "update-assignment",
-    {
-      classId: z.string().describe("The ID of the class to create the assignment in"),
-      assignmentId: z.string().describe("The ID of the assignment to update"),
-      displayName: z.string().describe("The display name of the assignment"),
-      dueDateTime: z.string().describe("The due date and time for the assignment in ISO format"),
-      assignTo: z.object({
-        "@odata.type": z.string().describe("The type of recipient (e.g., #microsoft.graph.educationAssignmentClassRecipient, #microsoft.graph.educationAssignmentIndividualRecipient)"),
-        recipients: z.array(z.string()).optional().describe("Optional: Student IDs to assign the assignment to (required if using IndividualRecipient)")
-      }).optional().describe("Optional: Specify which students to assign to. Default is the whole class"),
-      instructions: z.string().optional().describe("Optional: The instructions for the assignment"),
-    },
-    async ({ 
-      classId,
-      assignmentId,
-      displayName, 
-      dueDateTime, 
-      assignTo,
-      instructions
-     }) => {
-      console.error("📝 update-assignment tool called");
-     
-      if (!isAuthenticated) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: "User not authenticated. Please use the microsoft-login tool first."
-            })
-          }]
-        };
-      }
-      
-      try {
-        // Create base payload with required fields
-        const assignmentPayload = {
-          displayName,
-          dueDateTime
-        };
-        
-        // Add assignTo - if not provided, default to whole class
-        assignmentPayload.assignTo = assignTo || {
-          "@odata.type": "#microsoft.graph.educationAssignmentClassRecipient"
-        };
-        
-        // Add optional fields if provided
-        if (instructions) {
-          assignmentPayload.instructions = {
-            contentType: "text",
-            content: instructions
-          };
-        }
-        
-        const createRes = await axios.patch(
-          `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments/${assignmentId}`,
-          assignmentPayload,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            timeout: 5000
-          }
-        );
-       
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "success",
-              assignmentDetails: createRes.data
-            })
-          }]
-        };
-      } catch (error) {
-        // Error handling
-        let errorMessage = "Unknown error occurred";
-       
-        if (error.response) {
-          errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
-        } else if (error.request) {
-          errorMessage = "Network error: No response received from server";
-        } else {
-          errorMessage = `Request error: ${error.message}`;
-        }
-       
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: errorMessage
-            })
-          }]
-        };
-      }
-    }
-  );
-
-  //Attach rubric to assignment
-  server.tool(
-    "attach-rubric-to-assignment",
-    {
-      classId: z.string().describe("The ID of the class that contains the assignment"),
-      assignmentId: z.string().describe("The ID of the assignment to attach the rubric to"),
-      rubricId: z.string().describe("The ID of the rubric to attach to the assignment")
-    },
-    async ({ classId, assignmentId, rubricId }) => {
-      console.error("📎 attach-rubric-to-assignment tool called");
-  
-      if (!isAuthenticated) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: "User not authenticated. Please use the microsoft-login tool first."
-            })
-          }]
-        };
-      }
-  
-      try {
-        const odataRef = {
-          "@odata.id": `https://graph.microsoft.com/v1.0/education/me/rubrics/${rubricId}`
-        };
-  
-        const response = await axios.put(
-          `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments/${assignmentId}/rubric/$ref`,
-          odataRef,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            timeout: 5000
-          }
-        );
-  
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "success",
-              message: "Rubric attached successfully.",
-              result: response.data
-            })
-          }]
-        };
-      } catch (error) {
-        let errorMessage = "Unknown error occurred";
-  
-        if (error.response) {
-          errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
-        } else if (error.request) {
-          errorMessage = "Network error: No response received from server";
-        } else {
-          errorMessage = `Request error: ${error.message}`;
-        }
-  
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: errorMessage
-            })
-          }]
-        };
-      }
-    }
-  );
-  
-  server.tool(
-    "create-or-get-rubric",
+    "rubric-create-get",
     {
       displayName: z.string().describe("The display name of the rubric"),
       maxPoints: z.number().describe("The maximum number of points the rubric is worth"),
@@ -889,6 +328,142 @@ async function createMCPServer() {
     }
   );
   
+  server.tool(
+    "user-get",
+    {
+      userId: z.string().optional().describe("The ID of the user to retrieve"),
+      userPrincipalName: z.string().optional().describe("The email (UPN) of the user to retrieve"),
+      search: z.string().optional().describe("Optional: Search query to look up users by name or email (e.g. 'john')")
+    },
+    async ({ userId, userPrincipalName, search }) => {
+      console.error("🔍 get-user tool called");
+  
+      if (!isAuthenticated) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              status: "error",
+              message: "❌ User not authenticated. Please use the microsoft-login tool first."
+            })
+          }]
+        };
+      }
+  
+      try {
+        let userResponse;
+  
+        // 1. Fetch by ID
+        if (userId) {
+          userResponse = await axios.get(
+            `https://graph.microsoft.com/v1.0/users/${userId}`,
+            {
+              headers: { Authorization: `Bearer ${accessToken}` }
+            }
+          );
+  
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                status: "success",
+                message: "User retrieved by ID.",
+                user: userResponse.data
+              })
+            }]
+          };
+        }
+  
+        // 2. Fetch by UPN/email
+        if (userPrincipalName) {
+          userResponse = await axios.get(
+            `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(userPrincipalName)}`,
+            {
+              headers: { Authorization: `Bearer ${accessToken}` }
+            }
+          );
+  
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                status: "success",
+                message: "User retrieved by userPrincipalName.",
+                user: userResponse.data
+              })
+            }]
+          };
+        }
+  
+        // 3. Search mode
+        if (search) {
+          const searchResponse = await axios.get(
+            `https://graph.microsoft.com/v1.0/users?$search="displayName:${search}"&$count=true`,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                ConsistencyLevel: "eventual"
+              }
+            }
+          );
+  
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                status: "success",
+                message: "Users matching search query retrieved.",
+                count: searchResponse.data?.value?.length || 0,
+                users: searchResponse.data?.value
+              })
+            }]
+          };
+        }
+  
+        // 4. Fallback: list first page of all users
+        const allResponse = await axios.get(
+          `https://graph.microsoft.com/v1.0/users?$top=10`,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          }
+        );
+  
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              status: "success",
+              message: "Returning first page of users.",
+              users: allResponse.data.value
+            })
+          }]
+        };
+      } catch (error) {
+        let errorMessage = "Unknown error occurred";
+        if (error.response) {
+          errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
+        } else if (error.request) {
+          errorMessage = "Network error: No response received from server";
+        } else {
+          errorMessage = `Request error: ${error.message}`;
+        }
+  
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              status: "error",
+              message: errorMessage
+            })
+          }]
+        };
+      }
+    },
+    {
+      description: "Fetches a user by ID, email (userPrincipalName), or search query. Returns first page of users if no parameters are provided."
+    }
+  );
+  
 
   // Register prompts
   server.prompt(
@@ -982,6 +557,10 @@ async function createMCPServer() {
 
       accessToken = tokenResponse.accessToken;
       isAuthenticated = true;
+
+      auth.accessToken = accessToken;
+      auth.isAuthenticated = true;
+
       console.error("✅ Authentication successful!");
 
       res.send(`
