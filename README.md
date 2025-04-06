@@ -169,3 +169,37 @@ Claude will automatically detect the MCP Server and the registered tools.
 
 As soon as you request data, an authentication flow will be started. You can always trigger it manually by calling auth-login. I've noticed that Claude not always give you the url, you can find, and copy it from the call it makes to the authentication server if needed. [Fix in progress]
 
+---
+
+
+## 🧠 Scenario: Remediation Flow for Underperforming Students
+
+This is a structured walkthrough based on original prompts for data analysis and follow-up instruction.
+
+
+### 📝 Original Prompts
+
+1. **Find my assignment 'lineair equation' in my algebra course. Give me the name, instructions and the due date.**
+
+2. **I want an overview in table format of all underperforming students. I want their name, their feedback I provided, and the rubric if there is one associated. I want one line per student. Split up the rubric separate items.**
+
+3. **Can you analyze the rubric feedback and find commonalities.**
+
+4. **Based on this feedback, what are some ideas to remediate this.**
+
+5. **I want them to practice variations.**
+
+6. **Translate this into an assignment and rubric.**
+
+7. **Create for those students a new draft assignment with this information ... Give them two weeks to complete it.**
+
+---
+
+Each prompt serves as a step in a larger automated or AI-assisted education workflow:
+
+- Retrieving targeted assignments
+- Analyzing rubric-aligned feedback
+- Identifying patterns in student work
+- Recommending learning interventions
+- Creating and assigning personalized remediation tasks
+
