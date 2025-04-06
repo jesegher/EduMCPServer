@@ -327,7 +327,7 @@ function registerAssignmentTools(server, auth) {
         // Add optional fields if provided
         if (instructions) {
           assignmentPayload.instructions = {
-            contentType: "text",
+            contentType: "html",
             content: instructions
           };
         }
@@ -466,7 +466,7 @@ function registerAssignmentTools(server, auth) {
         // Add optional fields if provided
         if (instructions) {
           assignmentPayload.instructions = {
-            contentType: "text",
+            contentType: "html",
             content: instructions
           };
         }

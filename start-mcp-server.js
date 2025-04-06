@@ -37,12 +37,17 @@ async function createMCPServer() {
   // Create the server with the new McpServer class
   const server = new McpServer({ 
     name: "education-server", 
-    version: "1.0.0" 
+    version: "1.0.0" ,
+    capabilities: {
+      resources: true,
+      tools: true, 
+      prompts: true
+    }
   });
 
     // Create a transport
   const transport = new StdioServerTransport();
-  
+
   console.error("📝 Registering tools...");
   
   
@@ -125,9 +130,7 @@ async function createMCPServer() {
       };
     }
   );
-  
-  
-  
+   
   server.tool(
     "user-get",
     {
@@ -263,7 +266,6 @@ async function createMCPServer() {
       description: "Fetches a user by ID, email (userPrincipalName), or search query. Returns first page of users if no parameters are provided."
     }
   );
-  
 
   // Register prompts
   server.prompt(
@@ -409,6 +411,7 @@ async function createMCPServer() {
     console.error("❌ Failed to connect MCP server:", err);
     process.exit(1);
   }
+ 
 }
 
 // Set up global error handler
