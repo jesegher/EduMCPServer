@@ -1,5 +1,5 @@
-const axios = require("axios");
-const { z } = require("zod");
+import axios from "axios";
+import { z } from 'zod';
 
 function registerAssignmentTools(server, auth) {
   
@@ -588,4 +588,4 @@ function registerAssignmentTools(server, auth) {
 
 }
 
-module.exports = registerAssignmentTools;
+export default registerAssignmentTools;

@@ -1,5 +1,5 @@
-const axios = require("axios");
-const { z } = require("zod");
+import axios from "axios";
+import { z } from 'zod';
 
 function registerRubricTools(server, auth) {
   
@@ -204,4 +204,4 @@ server.tool(
 
 }
 
-module.exports = registerRubricTools;
+export default registerRubricTools;

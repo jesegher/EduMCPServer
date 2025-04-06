@@ -1,26 +1,28 @@
-// MCP Education Assignments Server with User-Delegated Auth
-require('dotenv').config();
-const express = require('express');
-const axios = require('axios');
-const crypto = require('crypto');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import 'dotenv/config';
+import express from 'express';
+import axios from 'axios';
+import crypto from 'crypto';
+
 const msal = require('@azure/msal-node');
-const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
-const { z } = require('zod'); // Add this for parameter validation
-const { Console } = require('console');
+const { ConfidentialClientApplication } = msal;
 
-const registerAssignmentTools = require('./Tools/assignment.js');
-const registerRubricTools = require('./Tools/rubric.js');
-const registerClassTools = require('./Tools/class.js');
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from 'zod';
+import { Console } from 'console';
 
+import registerAssignmentTools from './Tools/assignment.js';
+import registerRubricTools from './Tools/rubric.js';
+import registerClassTools from './Tools/class.js';
 
 let accessToken = null;
 let isAuthenticated = false;
-
-// Add a state store to validate auth callbacks
 const pendingAuthStates = new Set();
 
-const msalClient = new msal.ConfidentialClientApplication({
+const msalClient = new ConfidentialClientApplication({
   auth: {
     clientId: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
@@ -28,327 +30,235 @@ const msalClient = new msal.ConfidentialClientApplication({
   },
 });
 
-// Update this line in your code
-const graphScopes = ["https://graph.microsoft.com/EduRoster.ReadWrite","https://graph.microsoft.com/EduAssignments.ReadWrite","https://graph.microsoft.com/User.ReadWrite.All"];
+const graphScopes = [
+  "https://graph.microsoft.com/EduRoster.ReadWrite",
+  "https://graph.microsoft.com/EduAssignments.ReadWrite",
+  "https://graph.microsoft.com/User.ReadWrite.All"
+];
 
 async function createMCPServer() {
   console.error("🚀 Starting MCP Education server...");
-  
-  // Create the server with the new McpServer class
-  const server = new McpServer({ 
-    name: "education-server", 
-    version: "1.0.0" ,
+
+  const server = new McpServer({
+    name: "education-server",
+    version: "1.0.0",
     capabilities: {
       resources: true,
-      tools: true, 
+      tools: true,
       prompts: true
     }
   });
 
-    // Create a transport
   const transport = new StdioServerTransport();
 
   console.error("📝 Registering tools...");
-  
-  
-  // Register your assignment tools
-  
-  const auth = {
-    accessToken: null,
-    isAuthenticated: false
-  };
-
-  console.error("📝 Registering assignment tools...");
+  const auth = { accessToken: null, isAuthenticated: false };
 
   registerAssignmentTools(server, auth);
-
-  console.error("📝 Registering rubric tools...");
   registerRubricTools(server, auth);
-
-  console.error("📝 Registering class tools...");
   registerClassTools(server, auth);
 
-  // Register tools with the new API
-  server.tool(
-    "auth-login",
-    {}, // Empty schema for no parameters
-    async () => {
-      console.error("🔑 microsoft-login tool called");
-      try {
-        const state = crypto.randomBytes(16).toString("hex");
-        pendingAuthStates.add(state);
-        
-        const url = await msalClient.getAuthCodeUrl({
-          scopes: graphScopes,
-          redirectUri: process.env.REDIRECT_URI,
-          state,
-        });
-        
-        console.error(`📤 Generated auth URL: ${url.substring(0, 50)}...`);
-        return { 
-          content: [{ 
-            type: "text", 
-            text: JSON.stringify({
-              status: "authentication_required", 
-              url,
-              message: "Please open this URL in your browser to authenticate"
-            })
-          }]
-        };
-      } catch (error) {
-        console.error("❌ Error generating auth URL:", error);
-        return { 
-          content: [{ 
-            type: "text", 
-            text: JSON.stringify({
-              status: "error", 
-              message: "Failed to generate authentication URL"
-            })
-          }]
-        };
-      }
-    }
-  );
-  
-  server.tool(
-    "auth-status-get",
-    {}, // Empty schema for no parameters
-    async () => {
-      console.error("🔍 get-auth-status tool called");
-      console.error(accessToken);
-      
-      return { 
-        content: [{ 
-          type: "text", 
+  server.tool("auth-login", {}, async () => {
+    console.error("🔑 microsoft-login tool called");
+    try {
+      const state = crypto.randomBytes(16).toString("hex");
+      pendingAuthStates.add(state);
+
+      const url = await msalClient.getAuthCodeUrl({
+        scopes: graphScopes,
+        redirectUri: process.env.REDIRECT_URI,
+        state,
+      });
+
+      console.error(`📤 Generated auth URL: ${url.substring(0, 50)}...`);
+      return {
+        content: [{
+          type: "text",
           text: JSON.stringify({
-            authenticated: isAuthenticated,
-            message: isAuthenticated ? 
-              "User is authenticated" : 
-              "User is not authenticated. Please call microsoft-login first"
+            status: "authentication_required",
+            url,
+            message: "Please open this URL in your browser to authenticate"
+          })
+        }]
+      };
+    } catch (error) {
+      console.error("❌ Error generating auth URL:", error);
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            status: "error",
+            message: "Failed to generate authentication URL"
           })
         }]
       };
     }
-  );
-   
-  server.tool(
-    "user-get",
-    {
-      userId: z.string().optional().describe("The ID of the user to retrieve"),
-      userPrincipalName: z.string().optional().describe("The email (UPN) of the user to retrieve"),
-      search: z.string().optional().describe("Optional: Search query to look up users by name or email (e.g. 'john')")
-    },
-    async ({ userId, userPrincipalName, search }) => {
-      console.error("🔍 get-user tool called");
-  
-      if (!isAuthenticated) {
+  });
+
+  server.tool("auth-status-get", {}, async () => {
+    console.error("🔍 get-auth-status tool called");
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          authenticated: isAuthenticated,
+          message: isAuthenticated ?
+            "User is authenticated" :
+            "User is not authenticated. Please call microsoft-login first"
+        })
+      }]
+    };
+  });
+
+  server.tool("user-get", {
+    userId: z.string().optional(),
+    userPrincipalName: z.string().optional(),
+    search: z.string().optional()
+  }, async ({ userId, userPrincipalName, search }) => {
+    console.error("🔍 get-user tool called");
+
+    if (!isAuthenticated) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            status: "error",
+            message: "❌ User not authenticated. Please use the microsoft-login tool first."
+          })
+        }]
+      };
+    }
+
+    try {
+      let userResponse;
+      if (userId) {
+        userResponse = await axios.get(
+          `https://graph.microsoft.com/v1.0/users/${userId}`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
         return {
           content: [{
             type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: "❌ User not authenticated. Please use the microsoft-login tool first."
-            })
+            text: JSON.stringify({ status: "success", message: "User retrieved by ID.", user: userResponse.data })
           }]
         };
       }
-  
-      try {
-        let userResponse;
-  
-        // 1. Fetch by ID
-        if (userId) {
-          userResponse = await axios.get(
-            `https://graph.microsoft.com/v1.0/users/${userId}`,
-            {
-              headers: { Authorization: `Bearer ${accessToken}` }
-            }
-          );
-  
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                status: "success",
-                message: "User retrieved by ID.",
-                user: userResponse.data
-              })
-            }]
-          };
-        }
-  
-        // 2. Fetch by UPN/email
-        if (userPrincipalName) {
-          userResponse = await axios.get(
-            `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(userPrincipalName)}`,
-            {
-              headers: { Authorization: `Bearer ${accessToken}` }
-            }
-          );
-  
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                status: "success",
-                message: "User retrieved by userPrincipalName.",
-                user: userResponse.data
-              })
-            }]
-          };
-        }
-  
-        // 3. Search mode
-        if (search) {
-          const searchResponse = await axios.get(
-            `https://graph.microsoft.com/v1.0/users?$search="displayName:${search}"&$count=true`,
-            {
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                ConsistencyLevel: "eventual"
-              }
-            }
-          );
-  
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                status: "success",
-                message: "Users matching search query retrieved.",
-                count: searchResponse.data?.value?.length || 0,
-                users: searchResponse.data?.value
-              })
-            }]
-          };
-        }
-  
-        // 4. Fallback: list first page of all users
-        const allResponse = await axios.get(
-          `https://graph.microsoft.com/v1.0/users?$top=10`,
+
+      if (userPrincipalName) {
+        userResponse = await axios.get(
+          `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(userPrincipalName)}`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ status: "success", message: "User retrieved by UPN.", user: userResponse.data })
+          }]
+        };
+      }
+
+      if (search) {
+        const searchResponse = await axios.get(
+          `https://graph.microsoft.com/v1.0/users?$search="displayName:${search}"&$count=true`,
           {
-            headers: { Authorization: `Bearer ${accessToken}` }
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              ConsistencyLevel: "eventual"
+            }
           }
         );
-  
         return {
           content: [{
             type: "text",
             text: JSON.stringify({
               status: "success",
-              message: "Returning first page of users.",
-              users: allResponse.data.value
-            })
-          }]
-        };
-      } catch (error) {
-        let errorMessage = "Unknown error occurred";
-        if (error.response) {
-          errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
-        } else if (error.request) {
-          errorMessage = "Network error: No response received from server";
-        } else {
-          errorMessage = `Request error: ${error.message}`;
-        }
-  
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "error",
-              message: errorMessage
+              message: "Users matching search query retrieved.",
+              count: searchResponse.data?.value?.length || 0,
+              users: searchResponse.data?.value
             })
           }]
         };
       }
-    },
-    {
-      description: "Fetches a user by ID, email (userPrincipalName), or search query. Returns first page of users if no parameters are provided."
+
+      const allResponse = await axios.get(
+        `https://graph.microsoft.com/v1.0/users?$top=10`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            status: "success",
+            message: "Returning first page of users.",
+            users: allResponse.data.value
+          })
+        }]
+      };
+
+    } catch (error) {
+      let errorMessage = "Unknown error occurred";
+      if (error.response) {
+        errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
+      } else if (error.request) {
+        errorMessage = "Network error: No response received";
+      } else {
+        errorMessage = `Request error: ${error.message}`;
+      }
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ status: "error", message: errorMessage })
+        }]
+      };
     }
-  );
+  }, {
+    description: "Fetches a user by ID, email, or search query."
+  });
 
-  // Register prompts
-  server.prompt(
-    "get-assignments",
-    {},
-    () => ({
-      messages: [
-        {
-          role: "user",
-          content: {
-            type: "text",
-            text: "Please get my education assignments and format them for easy reading."
-          }
-        }
-      ]
-    })
-  );
-  
-  server.prompt(
-    "assignments-by-date",
-    {},
-    () => ({
-      messages: [
-        {
-          role: "user",
-          content: {
-            type: "text",
-            text: "Get my assignments and organize them by due date, with the closest deadlines first."
-          }
-        }
-      ]
-    })
-  );
-  
-  server.prompt(
-    "upcoming-deadlines",
-    {},
-    () => ({
-      messages: [
-        {
-          role: "user",
-          content: {
-            type: "text",
-            text: "Please show me assignments that are due within the next 7 days."
-          }
-        }
-      ]
-    })
-  );
-  
-  server.prompt(
-    "class-summary",
-    {},
-    () => ({
-      messages: [
-        {
-          role: "user",
-          content: {
-            type: "text",
-            text: "Get my assignments and organize them by class, showing a summary for each course."
-          }
-        }
-      ]
+  server.resource("config", "config://app", async (uri) => ({
+    contents: [{ uri: uri.href, text: "Entra ID Stuff" }]
+  }));
+
+  server.resource(
+    "greeting",
+    new ResourceTemplate("greeting://{name}", { list: undefined }),
+    async (uri, { name }) => ({
+      contents: [{ uri: uri.href, text: `Hello, ${name}!` }]
     })
   );
 
-  // ✅ Auth callback Express server
+  server.resource(
+    "echo",
+    new ResourceTemplate("echo://{message}", { list: undefined }),
+    async (uri, { message }) => ({
+      contents: [{ uri: uri.href, text: `Resource echo: ${message}` }]
+    })
+  );
+
+  server.prompt("class-summary", {}, () => ({
+    messages: [{
+      role: "user",
+      content: { type: "text", text: "Get my assignments and organize them by class, showing a summary for each course." }
+    }]
+  }));
+
   const app = express();
   const PORT = process.env.PORT || 3000;
 
   app.get('/auth/callback', async (req, res) => {
     console.error("📥 Received auth callback");
-    
-    // Validate state parameter
+
     const state = req.query.state;
     if (!state || !pendingAuthStates.has(state)) {
       console.error("❌ Invalid state parameter in callback");
-      return res.status(400).send("Invalid state parameter");
+      if (!res.headersSent) {
+        return res.status(400).send("Invalid state parameter");
+      }
+      return;
     }
-    
-    // Remove used state
+
     pendingAuthStates.delete(state);
-    
+
     try {
       console.error("🔄 Acquiring token...");
       const tokenResponse = await msalClient.acquireTokenByCode({
@@ -359,67 +269,62 @@ async function createMCPServer() {
 
       accessToken = tokenResponse.accessToken;
       isAuthenticated = true;
-
       auth.accessToken = accessToken;
       auth.isAuthenticated = true;
 
       console.error("✅ Authentication successful!");
 
-      res.send(`
-        <h2>Authentication successful</h2>
-        <p>You can now close this window and return to Claude Desktop.</p>
-        <script>window.close();</script>
-      `);
+      if (!res.headersSent) {
+        res.send(`
+          <h2>Authentication successful</h2>
+          <p>You can now close this window and return to Claude Desktop.</p>
+          <script>window.close();</script>
+        `);
+      }
     } catch (error) {
       console.error("❌ Callback error:", error);
-      res.status(500).send("Error during authentication");
+      if (!res.headersSent) {
+        res.status(500).send("Error during authentication");
+      }
     }
   });
 
-  // Add proper error handling and timeout for Express server
   const server_app = app.listen(PORT)
-  .on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.error(`❌ Port ${PORT} is already in use`);
-    } else {
-      console.error('❌ Auth server error:', err);
-    }
-  })
-  .on('listening', () => {
-    console.error(`✅ Auth server running on port ${PORT}`);
-  });
-  
-  // Set a timeout for the Express server
-  server_app.timeout = 10000; // 10 seconds
+    .on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is already in use`);
+      } else {
+        console.error('❌ Auth server error:', err);
+      }
+    })
+    .on('listening', () => {
+      console.error(`✅ Auth server running on port ${PORT}`);
+    });
 
-  // Connect the MCP server
+  server_app.timeout = 10000;
+
   console.error("🔌 Connecting MCP server to transport...");
-  
-  // Add more verbose error handling for the connection
+
   try {
-    // Add a timeout promise to avoid hanging
     const connectWithTimeout = Promise.race([
       server.connect(transport),
-      new Promise((_, reject) => 
+      new Promise((_, reject) =>
         setTimeout(() => reject(new Error("MCP connection timeout")), 10000)
       )
     ]);
-    
+
     await connectWithTimeout;
     console.error("✅ MCP server connected and ready!");
   } catch (err) {
     console.error("❌ Failed to connect MCP server:", err);
     process.exit(1);
   }
- 
 }
 
-// Set up global error handler
 process.on('uncaughtException', (err) => {
   console.error('❌ Uncaught exception:', err);
 });
 
-// Add an unhandled promise rejection handler
 process.on('unhandledRejection', (reason, promise) => {
   console.error('❌ Unhandled promise rejection:', reason);
 });

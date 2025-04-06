@@ -2,7 +2,7 @@
   "name": "mcp-working-example",
   "version": "1.0.0",
   "main": "index.js",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@azure/msal-node": "^3.4.1",
     "@modelcontextprotocol/sdk": "^1.8.0",

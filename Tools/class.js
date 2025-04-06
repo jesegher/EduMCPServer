@@ -1,5 +1,5 @@
-const axios = require("axios");
-const { z } = require("zod");
+import axios from "axios";
+import { z } from 'zod';
 
 function registerClassTools(server, auth) {
   
@@ -117,4 +117,4 @@ function registerClassTools(server, auth) {
 
 }
 
-module.exports = registerClassTools;
+export default registerClassTools;
