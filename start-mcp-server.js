@@ -95,7 +95,10 @@ async function createMCPServer() {
     }
   });
 
-  server.tool("auth-status-get", {}, async () => {
+  server.tool("auth-status-get", {
+    description: "Check whether the user is currently authenticated. "
+               + "Use this tool to determine if you need to invoke the 'microsoft-login' tool before attempting any actions that require authentication."
+  }, async () => {
     console.error("🔍 get-auth-status tool called");
     return {
       content: [{
@@ -109,6 +112,8 @@ async function createMCPServer() {
       }]
     };
   });
+
+  
 
   server.tool("user-get", {
     userId: z.string().optional(),
