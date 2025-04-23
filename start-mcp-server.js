@@ -111,7 +111,7 @@ async function createMCPServer() {
   });
 
 
-  server.tool("user-get", {
+  server.tool("user-get","Fetches a user based on userid, UPN or search string.", {
     userId: z.string().optional(),
     userPrincipalName: z.string().optional(),
     search: z.string().optional()
@@ -212,9 +212,8 @@ async function createMCPServer() {
         }]
       };
     }
-  }, {
-    description: "Fetches a user by ID, email, or search query."
-  });
+  }
+);
 
   server.resource("config", "config://app", async (uri) => ({
     contents: [{ uri: uri.href, text: "Entra ID Stuff" }]
