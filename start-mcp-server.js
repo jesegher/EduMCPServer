@@ -18,6 +18,7 @@ import registerAssignmentTools from './Tools/assignment.js';
 import registerRubricTools from './Tools/rubric.js';
 import registerClassTools from './Tools/class.js';
 import registerUserTools from './Tools/users.js';
+import registerGroupTools from './Tools/group.js';
 
 
 let accessToken = null;
@@ -35,7 +36,9 @@ const msalClient = new ConfidentialClientApplication({
 const graphScopes = [
   "https://graph.microsoft.com/EduRoster.ReadWrite",
   "https://graph.microsoft.com/EduAssignments.ReadWrite",
-  "https://graph.microsoft.com/User.ReadWrite.All"
+  "https://graph.microsoft.com/User.ReadWrite.All",
+  "https://graph.microsoft.com/Group.ReadWrite.All",
+  "https://graph.microsoft.com/Directory.ReadWrite.All"
 ];
 
 async function createMCPServer() {
@@ -60,6 +63,7 @@ async function createMCPServer() {
   registerRubricTools(server, auth);
   registerClassTools(server, auth);
   registerUserTools(server,auth);
+  registerGroupTools(server,auth);
 
   server.tool("auth-login", {}, async () => {
     console.error("🔑 microsoft-login tool called");
