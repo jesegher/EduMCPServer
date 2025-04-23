@@ -17,6 +17,8 @@ import { Console } from 'console';
 import registerAssignmentTools from './Tools/assignment.js';
 import registerRubricTools from './Tools/rubric.js';
 import registerClassTools from './Tools/class.js';
+import registerUserTools from './Tools/users.js';
+
 
 let accessToken = null;
 let isAuthenticated = false;
@@ -57,6 +59,7 @@ async function createMCPServer() {
   registerAssignmentTools(server, auth);
   registerRubricTools(server, auth);
   registerClassTools(server, auth);
+  registerUserTools(server,auth);
 
   server.tool("auth-login", {}, async () => {
     console.error("🔑 microsoft-login tool called");
@@ -111,110 +114,7 @@ async function createMCPServer() {
   });
 
 
-  server.tool("user-get","Fetches a user based on userid, UPN or search string.", {
-    userId: z.string().optional(),
-    userPrincipalName: z.string().optional(),
-    search: z.string().optional()
-  }, async ({ userId, userPrincipalName, search }) => {
-    console.error("🔍 get-user tool called");
-
-    if (!isAuthenticated) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            status: "error",
-            message: "❌ User not authenticated. Please use the microsoft-login tool first."
-          })
-        }]
-      };
-    }
-
-    try {
-      let userResponse;
-      if (userId) {
-        userResponse = await axios.get(
-          `https://graph.microsoft.com/v1.0/users/${userId}`,
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ status: "success", message: "User retrieved by ID.", user: userResponse.data })
-          }]
-        };
-      }
-
-      if (userPrincipalName) {
-        userResponse = await axios.get(
-          `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(userPrincipalName)}`,
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ status: "success", message: "User retrieved by UPN.", user: userResponse.data })
-          }]
-        };
-      }
-
-      if (search) {
-        const searchResponse = await axios.get(
-          `https://graph.microsoft.com/v1.0/users?$search="displayName:${search}"&$count=true`,
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              ConsistencyLevel: "eventual"
-            }
-          }
-        );
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "success",
-              message: "Users matching search query retrieved.",
-              count: searchResponse.data?.value?.length || 0,
-              users: searchResponse.data?.value
-            })
-          }]
-        };
-      }
-
-      const allResponse = await axios.get(
-        `https://graph.microsoft.com/v1.0/users?$top=10`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            status: "success",
-            message: "Returning first page of users.",
-            users: allResponse.data.value
-          })
-        }]
-      };
-
-    } catch (error) {
-      let errorMessage = "Unknown error occurred";
-      if (error.response) {
-        errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
-      } else if (error.request) {
-        errorMessage = "Network error: No response received";
-      } else {
-        errorMessage = `Request error: ${error.message}`;
-      }
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ status: "error", message: errorMessage })
-        }]
-      };
-    }
-  }
-);
-
+ 
   server.resource("config", "config://app", async (uri) => ({
     contents: [{ uri: uri.href, text: "Entra ID Stuff" }]
   }));

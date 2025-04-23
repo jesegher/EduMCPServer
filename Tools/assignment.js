@@ -5,7 +5,7 @@ function registerAssignmentTools(server, auth) {
   
   // 📄 Get assignment details or list all
   server.tool(
-    "assignment_get","Use this fucntion when you need to get assignment details or list all assignments",
+    "assignment_get","Use this function when you need to get assignment details or list all assignments",
     {
       classId: z.string().optional().describe("The class ID of the assignment (required for getting a specific assignment)"),
       assignmentId: z.string().optional().describe("The assignment ID to fetch details for"),
