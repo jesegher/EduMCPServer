@@ -27,7 +27,7 @@ function registerUserTools(server, auth) {
       if (userId) {
         userResponse = await axios.get(
           `https://graph.microsoft.com/v1.0/users/${userId}`,
-          { headers: { Authorization: `Bearer ${accessToken}` } }
+          { headers: { Authorization: `Bearer ${auth.accessToken}` } }
         );
         return {
           content: [{
@@ -40,7 +40,7 @@ function registerUserTools(server, auth) {
       if (userPrincipalName) {
         userResponse = await axios.get(
           `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(userPrincipalName)}`,
-          { headers: { Authorization: `Bearer ${accessToken}` } }
+          { headers: { Authorization: `Bearer ${auth.accessToken}` } }
         );
         return {
           content: [{
@@ -55,7 +55,7 @@ function registerUserTools(server, auth) {
           `https://graph.microsoft.com/v1.0/users?$search="displayName:${search}"&$count=true`,
           {
             headers: {
-              Authorization: `Bearer ${accessToken}`,
+              Authorization: `Bearer ${auth.accessToken}`,
               ConsistencyLevel: "eventual"
             }
           }
@@ -75,7 +75,7 @@ function registerUserTools(server, auth) {
 
       const allResponse = await axios.get(
         `https://graph.microsoft.com/v1.0/users?$top=10`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
+        { headers: { Authorization: `Bearer ${auth.accessToken}` } }
       );
       return {
         content: [{
@@ -129,7 +129,7 @@ server.tool("user-update", "Updates a user based on userId. Only fields included
       const updateResponse = await axios.patch(
         `https://graph.microsoft.com/v1.0/users/${userId}`,
         updates,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
+        { headers: { Authorization: `Bearer ${auth.accessToken}` } }
       );
   
       return {
