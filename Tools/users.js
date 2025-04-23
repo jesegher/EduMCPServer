@@ -107,6 +107,67 @@ function registerUserTools(server, auth) {
   }
 );
 
+server.tool("user-attributes-select-get", "Retrieves only specific attributes from Entra ID. Specify which fields you need (e.g., displayName, jobTitle, skills, AgeGroup).", {
+  userId: z.string().optional(),
+  fields: z.array(z.string()).describe("List of field names to retrieve (e.g., displayName, userPrincipalName, jobTitle)")
+}, async ({ userId, fields }) => {
+  console.error("🎯 user-attributes-select-get called with:", fields);
+
+  if (!auth.isAuthenticated) {
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "error",
+          message: "❌ User not authenticated. Please use the microsoft-login tool first."
+        })
+      }]
+    };
+  }
+
+  const fieldQuery = fields.join(",");
+  const endpoint = `https://graph.microsoft.com/v1.0/users/${userId || 'me'}?$select=${fieldQuery}`;
+
+  try {
+    const response = await axios.get(endpoint, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "success",
+          message: "✅ Selected attributes retrieved.",
+          attributes: response.data
+        }, null, 2)
+      }]
+    };
+  } catch (error) {
+    let errorMessage = "Unknown error occurred";
+    if (error.response) {
+      errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
+    } else if (error.request) {
+      errorMessage = "Network error: No response received";
+    } else {
+      errorMessage = `Request error: ${error.message}`;
+    }
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "error",
+          message: errorMessage
+        })
+      }]
+    };
+  }
+});
+
+
 server.tool("user-update", "Updates a user based on userId. Only fields included in the input will be changed.", {
     userId: z.string(),
     updates: z.record(z.any()) // Flexible update payload

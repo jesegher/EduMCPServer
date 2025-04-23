@@ -1,2 +1,4 @@
 .env
 node_modules/
+node_modules/zod/lib/benchmarks/index.js
+/node_modules
