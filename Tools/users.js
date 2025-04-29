@@ -3,110 +3,118 @@ import { z } from 'zod';
 
 function registerUserTools(server, auth) {
   
- server.tool("user-get","Fetches a user based on userid, UPN or search string.", {
-    userId: z.string().optional(),
-    userPrincipalName: z.string().optional(),
-    search: z.string().optional()
-  }, async ({ userId, userPrincipalName, search }) => {
-    console.error("🔍 get-user tool called");
+server.tool("user-get", "Fetches a user based on userid, UPN or search string.", {
+  userId: z.string().optional(),
+  userPrincipalName: z.string().optional(),
+  search: z.string().optional()
+}, async ({ userId, userPrincipalName, search }) => {
+  console.error("🔍 get-user tool called");
 
-    if (!auth.isAuthenticated) {
+  if (!auth.isAuthenticated) {
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "error",
+          message: "❌ User not authenticated. Please use the microsoft-login tool first."
+        })
+      }]
+    };
+  }
+
+  try {
+    let userResponse;
+
+    if (userId) {
+      userResponse = await axios.get(
+        `https://graph.microsoft.com/v1.0/users/${userId}`,
+        { headers: { Authorization: `Bearer ${auth.accessToken}` } }
+      );
       return {
         content: [{
           type: "text",
-          text: JSON.stringify({
-            status: "error",
-            message: "❌ User not authenticated. Please use the microsoft-login tool first."
-          })
+          text: JSON.stringify({ status: "success", message: "User retrieved by ID.", user: userResponse.data })
         }]
       };
     }
 
-    try {
-      let userResponse;
-      if (userId) {
-        userResponse = await axios.get(
-          `https://graph.microsoft.com/v1.0/users/${userId}`,
-          { headers: { Authorization: `Bearer ${auth.accessToken}` } }
-        );
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ status: "success", message: "User retrieved by ID.", user: userResponse.data })
-          }]
-        };
-      }
-
-      if (userPrincipalName) {
-        userResponse = await axios.get(
-          `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(userPrincipalName)}`,
-          { headers: { Authorization: `Bearer ${auth.accessToken}` } }
-        );
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ status: "success", message: "User retrieved by UPN.", user: userResponse.data })
-          }]
-        };
-      }
-
-      if (search) {
-        const searchResponse = await axios.get(
-          `https://graph.microsoft.com/v1.0/users?$search="displayName:${search}"&$count=true`,
-          {
-            headers: {
-              Authorization: `Bearer ${auth.accessToken}`,
-              ConsistencyLevel: "eventual"
-            }
-          }
-        );
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              status: "success",
-              message: "Users matching search query retrieved.",
-              count: searchResponse.data?.value?.length || 0,
-              users: searchResponse.data?.value
-            })
-          }]
-        };
-      }
-
-      const allResponse = await axios.get(
-        `https://graph.microsoft.com/v1.0/users?$top=10`,
+    if (userPrincipalName) {
+      userResponse = await axios.get(
+        `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(userPrincipalName)}`,
         { headers: { Authorization: `Bearer ${auth.accessToken}` } }
+      );
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ status: "success", message: "User retrieved by UPN.", user: userResponse.data })
+        }]
+      };
+    }
+
+    if (search) {
+      const searchResponse = await axios.get(
+        `https://graph.microsoft.com/v1.0/users?$search="displayName:${search}"&$count=true`,
+        {
+          headers: {
+            Authorization: `Bearer ${auth.accessToken}`,
+            ConsistencyLevel: "eventual"
+          }
+        }
       );
       return {
         content: [{
           type: "text",
           text: JSON.stringify({
             status: "success",
-            message: "Returning first page of users.",
-            users: allResponse.data.value
+            message: "Users matching search query retrieved.",
+            count: searchResponse.data?.value?.length || 0,
+            users: searchResponse.data?.value
           })
         }]
       };
-
-    } catch (error) {
-      let errorMessage = "Unknown error occurred";
-      if (error.response) {
-        errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
-      } else if (error.request) {
-        errorMessage = "Network error: No response received";
-      } else {
-        errorMessage = `Request error: ${error.message}`;
-      }
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ status: "error", message: errorMessage })
-        }]
-      };
     }
-  }
-);
 
+    // Fetch all users with pagination
+    let allUsers = [];
+    let nextLink = `https://graph.microsoft.com/v1.0/users?$top=50`; // Adjust $top as needed
+
+    do {
+      const response = await axios.get(nextLink, {
+        headers: { Authorization: `Bearer ${auth.accessToken}` }
+      });
+      allUsers = allUsers.concat(response.data.value);
+      nextLink = response.data["@odata.nextLink"]; // Get the next page link
+    } while (nextLink);
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "success",
+          message: "All users retrieved successfully.",
+          count: allUsers.length,
+          users: allUsers
+        })
+      }]
+    };
+
+  } catch (error) {
+    let errorMessage = "Unknown error occurred";
+    if (error.response) {
+      errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
+    } else if (error.request) {
+      errorMessage = "Network error: No response received";
+    } else {
+      errorMessage = `Request error: ${error.message}`;
+    }
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({ status: "error", message: errorMessage })
+      }]
+    };
+  }
+});
 server.tool("user-attributes-select-get", "Retrieves only specific attributes from Entra ID. Specify which fields you need (e.g., displayName, jobTitle, skills, AgeGroup).", {
   userId: z.string().optional(),
   fields: z.array(z.string()).describe("List of field names to retrieve (e.g., displayName, userPrincipalName, jobTitle)")
@@ -131,7 +139,7 @@ server.tool("user-attributes-select-get", "Retrieves only specific attributes fr
   try {
     const response = await axios.get(endpoint, {
       headers: {
-        Authorization: `Bearer ${accessToken}`
+        Authorization: `Bearer ${auth.accessToken}`
       }
     });
 
@@ -166,7 +174,6 @@ server.tool("user-attributes-select-get", "Retrieves only specific attributes fr
     };
   }
 });
-
 
 server.tool("user-update", "Updates a user based on userId. Only fields included in the input will be changed.", {
     userId: z.string(),
@@ -224,9 +231,61 @@ server.tool("user-update", "Updates a user based on userId. Only fields included
       };
     }
   });
-  
- 
+   
+server.tool("user-groups-get", "Fetches the groups a user belongs to based on userId.", {
+  userId: z.string()
+}, async ({ userId }) => {
+  console.error("👥 user-groups-get tool called");
 
+  if (!auth.isAuthenticated) {
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "error",
+          message: "❌ User not authenticated. Please use the microsoft-login tool first."
+        })
+      }]
+    };
+  }
+
+  try {
+    const groupsResponse = await axios.get(
+      `https://graph.microsoft.com/v1.0/users/${userId}/memberOf`,
+      { headers: { Authorization: `Bearer ${auth.accessToken}` } }
+    );
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "success",
+          message: "✅ User groups retrieved successfully.",
+          groups: groupsResponse.data.value
+        })
+      }]
+    };
+  } catch (error) {
+    let errorMessage = "Unknown error occurred";
+    if (error.response) {
+      errorMessage = `API error: ${error.response.status} - ${error.response.data?.error?.message || 'Unknown API error'}`;
+    } else if (error.request) {
+      errorMessage = "Network error: No response received";
+    } else {
+      errorMessage = `Request error: ${error.message}`;
+    }
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "error",
+          message: errorMessage
+        })
+      }]
+    };
+  }
+});
   
 
 }
