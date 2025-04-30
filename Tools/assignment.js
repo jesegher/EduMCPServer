@@ -110,14 +110,11 @@ function registerAssignmentTools(server, auth) {
           }]
         };
       }
-    },
-    {
-      description: "Lists all assignments or fetches a specific assignment's details (optionally including its rubric)."
     }
   );
 
   server.tool(
-    "assignment-submissions-get",
+    "assignment-submissions-get","Fetches all submissions for a specific assignment.",
     {
       classId: z.string().describe("The ID of the class to get assignments from"),
       assignmentId: z.string().describe("The ID of the assignment to get details for"),           
@@ -186,7 +183,7 @@ function registerAssignmentTools(server, auth) {
   );
 
   server.tool(
-    "assignment-submissions-outcome-get",
+    "assignment-submissions-outcome-get","Fetches the outcome of a specific submission for a specific assignment.",
     {
       classId: z.string().describe("The ID of the class to get assignments from"),
       assignmentId: z.string().describe("The ID of the assignment to get details for"),           
@@ -256,7 +253,7 @@ function registerAssignmentTools(server, auth) {
   );
   
   server.tool(
-    "assignment-create",
+    "assignment-create","Create an assignment.",
     {
       classId: z.string().describe("The ID of the class to create the assignment in"),
       displayName: z.string().describe("The display name of the assignment"),
@@ -417,7 +414,7 @@ function registerAssignmentTools(server, auth) {
   );
 
   server.tool(
-    "assignment-update",
+    "assignment-update","Update a specific assignment.",
     {
       classId: z.string().describe("The ID of the class to create the assignment in"),
       assignmentId: z.string().describe("The ID of the assignment to update"),
@@ -516,7 +513,7 @@ function registerAssignmentTools(server, auth) {
 
   //Attach rubric to assignment
   server.tool(
-    "assignment-rubric-attach",
+    "assignment-rubric-attach","Attach a rubric to a specific assignment.",
     {
       classId: z.string().describe("The ID of the class that contains the assignment"),
       assignmentId: z.string().describe("The ID of the assignment to attach the rubric to"),

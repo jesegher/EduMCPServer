@@ -4,7 +4,7 @@ import { z } from 'zod';
 function registerRubricTools(server, auth) {
   
 server.tool(
-    "rubric-create-get",
+    "rubric-create-get","Creates a rubric if one doesn't already exist with the same display name.",
     {
       displayName: z.string().describe("The display name of the rubric"),
       maxPoints: z.number().describe("The maximum number of points the rubric is worth"),
@@ -133,7 +133,7 @@ server.tool(
   );
   
   server.tool(
-    "rubric_list",
+    "rubric_list","Lists all rubrics created by the authenticated user.",
     {},
     async () => {
       console.error("📋 rubric_list tool called");

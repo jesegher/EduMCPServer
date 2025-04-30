@@ -4,7 +4,7 @@ import { z } from 'zod';
 function registerClassTools(server, auth) {
   
     server.tool(
-        "class_get",
+        "class_get","Gets all classes or a specific class with optional search.",
         {
             classId: z.string().optional().describe("Optional: The ID of the class to retrieve"),
             search: z.string().optional().describe("Optional: Filter classes by display name (contains match)")

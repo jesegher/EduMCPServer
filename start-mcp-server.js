@@ -19,6 +19,7 @@ import registerRubricTools from './Tools/rubric.js';
 import registerClassTools from './Tools/class.js';
 import registerUserTools from './Tools/users.js';
 import registerGroupTools from './Tools/group.js';
+import registerAuthTools from './Tools/auth.js';
 
 
 let accessToken = null;
@@ -54,69 +55,19 @@ async function createMCPServer() {
     }
   });
 
-  const transport = new StdioServerTransport();
-
+  const stdioTransport = new StdioServerTransport();
+  
   console.error("📝 Registering tools...");
   const auth = { accessToken: null, isAuthenticated: false };
 
+  registerAuthTools(server, auth, msalClient, pendingAuthStates, graphScopes);
   registerAssignmentTools(server, auth);
   registerRubricTools(server, auth);
   registerClassTools(server, auth);
   registerUserTools(server,auth);
   registerGroupTools(server,auth);
-
-  server.tool("auth-login", {}, async () => {
-    console.error("🔑 microsoft-login tool called");
-    try {
-      const state = crypto.randomBytes(16).toString("hex");
-      pendingAuthStates.add(state);
-
-      const url = await msalClient.getAuthCodeUrl({
-        scopes: graphScopes,
-        redirectUri: process.env.REDIRECT_URI,
-        state,
-      });
-
-      console.error(`📤 Generated auth URL: ${url.substring(0, 50)}...`);
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            status: "authentication_required",
-            url,
-            message: "Please open this URL in your browser to authenticate"
-          })
-        }]
-      };
-    } catch (error) {
-      console.error("❌ Error generating auth URL:", error);
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            status: "error",
-            message: "Failed to generate authentication URL"
-          })
-        }]
-      };
-    }
-  });
-
-  server.tool("auth-status-get", "get the authentication status of the user.", async () => {
-    console.error("🔍 get-auth-status tool called");
-    return {
-      content: [{
-        type: "text",
-        text: JSON.stringify({
-          authenticated: isAuthenticated,
-          message: isAuthenticated ?
-            "User is authenticated" :
-            "User is not authenticated. Please call microsoft-login first"
-        })
-      }]
-    };
-  });
-
+  
+  
 
  
   server.resource("config", "config://app", async (uri) => ({
@@ -211,19 +162,20 @@ async function createMCPServer() {
 
   try {
     const connectWithTimeout = Promise.race([
-      server.connect(transport),
+      server.connect(stdioTransport), 
       new Promise((_, reject) =>
         setTimeout(() => reject(new Error("MCP connection timeout")), 10000)
       )
     ]);
 
     await connectWithTimeout;
-    console.error("✅ MCP server connected and ready!");
+    console.error("✅ MCP server connected and ready on both stdio and SSE!");
   } catch (err) {
     console.error("❌ Failed to connect MCP server:", err);
     process.exit(1);
   }
 }
+
 
 process.on('uncaughtException', (err) => {
   console.error('❌ Uncaught exception:', err);
