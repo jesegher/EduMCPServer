@@ -1,3 +1,5 @@
+console.log("🟢 MCP server entry file loaded");
+
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
@@ -187,9 +189,9 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Simple SSE Server (deprecated protocol version 2024-11-05) listening on port ${PORT}`);
+  console.log(`✅ MCP Server is listening on port ${PORT}`);
 });
 
 // Handle server shutdown
