@@ -3,11 +3,14 @@ console.log("🟢 MCP server entry file loaded");
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-import express from 'express';
 import 'dotenv/config';
 
-import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import express from "express";
+const { Request, Response } = express;
+
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+
 import { z } from 'zod';
 
 const msal = require('@azure/msal-node');
@@ -20,17 +23,6 @@ import registerUserTools from './Tools/users.js';
 import registerGroupTools from './Tools/group.js';
 import registerAuthTools from './Tools/auth.js';
 
-
-/**
- * This example server demonstrates the deprecated HTTP+SSE transport 
- * (protocol version 2024-11-05). It is mainly used for testing backward-compatible clients.
- * 
- * The server exposes two endpoints:
- * - /mcp: For establishing the SSE stream (GET)
- * - /messages: For receiving client messages (POST)
- */
-
-// Create an MCP server instance
 const pendingAuthStates = new Set();
 let accessToken = null;
 let isAuthenticated = false;
@@ -53,97 +45,52 @@ const graphScopes = [
 
 const auth = { accessToken: null, isAuthenticated: false };
 
-const getServer = () => {
-  const server = new McpServer({
-    name: 'simple-sse-server',
-    version: '1.0.0',
-  }, { capabilities: { logging: {} } });
+const server = new McpServer({
+  name: "mcp-edu-hosted",
+  description: "A Microsoft Edu hosted MCP server.",
+  version: "1.0.0",
+  tools: [],
+});
 
- 
-
-  console.error("📝 Registering tools...");
+console.error("📝 Registering tools...");
   
 
-  registerAuthTools(server, auth, msalClient, pendingAuthStates, graphScopes);
-  registerAssignmentTools(server, auth);
-  registerRubricTools(server, auth);
-  registerClassTools(server, auth);
-  registerUserTools(server,auth);
-  registerGroupTools(server,auth);
-
-  return server;
-};
+registerAuthTools(server, auth, msalClient, pendingAuthStates, graphScopes);
+registerAssignmentTools(server, auth);
+registerRubricTools(server, auth);
+registerClassTools(server, auth);
+registerUserTools(server,auth);
+registerGroupTools(server,auth);
 
 const app = express();
-app.use(express.json());
 
-// Store transports by session ID
+// to support multiple simultaneous connections we have a lookup object from
+// sessionId to transport
 const transports = {};
 
-// SSE endpoint for establishing the stream
-app.get('/mcp', async (req, res) => {
-  console.log('Received GET request to /sse (establishing SSE stream)');
+app.get("/sse", async (req, res) => {
+  // Get the full URI from the request
+  const host = req.get("host");
 
-  try {
-    // Create a new SSE transport for the client
-    // The endpoint for POST messages is '/messages'
-    const transport = new SSEServerTransport('/messages', res);
+  const fullUri = `https://${host}/messages`;
+  const transport = new SSEServerTransport(fullUri, res);
 
-    // Store the transport by session ID
-    const sessionId = transport.sessionId;
-    transports[sessionId] = transport;
-
-    // Set up onclose handler to clean up transport when closed
-    transport.onclose = () => {
-      console.log(`SSE transport closed for session ${sessionId}`);
-      delete transports[sessionId];
-    };
-
-    // Connect the transport to the MCP server
-    const server = getServer();
-    await server.connect(transport);
-
-    console.log(`Established SSE stream with session ID: ${sessionId}`);
-  } catch (error) {
-    console.error('Error establishing SSE stream:', error);
-    if (!res.headersSent) {
-      res.status(500).send('Error establishing SSE stream');
-    }
-  }
+  transports[transport.sessionId] = transport;
+  res.on("close", () => {
+    delete transports[transport.sessionId];
+  });
+  await server.connect(transport);
 });
 
-// Messages endpoint for receiving client JSON-RPC requests
-app.post('/messages', async (req, res) => {
-  console.log('Received POST request to /messages');
-
-  // Extract session ID from URL query parameter
-  const sessionId = req.query.sessionId;
-
-  if (!sessionId) {
-    console.error('No session ID provided in request URL');
-    res.status(400).send('Missing sessionId parameter');
-    return;
-  }
-
+app.post("/messages", async (req, res) => {
+  const sessionId = String(req.query.sessionId);
   const transport = transports[sessionId];
-  if (!transport) {
-    console.error(`No active transport found for session ID: ${sessionId}`);
-    res.status(404).send('Session not found');
-    return;
-  }
-
-  try {
-    // Handle the POST message with the transport
-    await transport.handlePostMessage(req, res, req.body);
-  } catch (error) {
-    console.error('Error handling request:', error);
-    if (!res.headersSent) {
-      res.status(500).send('Error handling request');
-    }
+  if (transport) {
+    await transport.handlePostMessage(req, res);
+  } else {
+    res.status(400).send("No transport found for sessionId");
   }
 });
-
-// Start the server
 
 app.get('/auth/callback', async (req, res) => {
   console.error("📥 Received auth callback");
@@ -189,25 +136,12 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ MCP Server is listening on port ${PORT}`);
+app.get("/", (req, res) => {
+  res.send("The Education MCP server is running!");
 });
 
-// Handle server shutdown
-process.on('SIGINT', async () => {
-  console.log('Shutting down server...');
+const PORT = process.env.PORT || 3001;
 
-  // Close all active transports to properly clean up resources
-  for (const sessionId in transports) {
-    try {
-      console.log(`Closing transport for session ${sessionId}`);
-      await transports[sessionId].close();
-      delete transports[sessionId];
-    } catch (error) {
-      console.error(`Error closing transport for session ${sessionId}:`, error);
-    }
-  }
-  console.log('Server shutdown complete');
-  process.exit(0);
+app.listen(PORT, () => {
+  console.log(`✅ Server is running at http://localhost:${PORT}`);
 });
