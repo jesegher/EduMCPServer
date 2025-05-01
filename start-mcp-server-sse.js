@@ -69,17 +69,50 @@ const app = express();
 const transports = {};
 
 app.get("/sse", async (req, res) => {
-  // Get the full URI from the request
   const host = req.get("host");
-
-  const fullUri = `https://${host}/messages`;
-  const transport = new SSEServerTransport(fullUri, res);
-
+  const baseUri = `https://${host}/messages`;
+  
+  // Create a buffer to store data written to the response
+  let buffer = [];
+  
+  // Create a proxy response object that intercepts writes
+  const proxyRes = new Proxy(res, {
+    get(target, prop) {
+      if (prop === 'write') {
+        // Intercept the write method
+        return (chunk) => {
+          // Check if this is the automatic endpoint event
+          if (typeof chunk === 'string' && chunk.startsWith('event: endpoint\ndata: /')) {
+            // Store it in the buffer but don't write it yet
+            buffer.push(chunk);
+            return true; // Pretend we wrote it
+          }
+          
+          // For all other writes, pass through to the real response
+          return target.write(chunk);
+        };
+      }
+      return target[prop];
+    }
+  });
+  
+  // Create the transport with our proxy response
+  const transport = new SSEServerTransport(baseUri, proxyRes);
   transports[transport.sessionId] = transport;
+  
+  // Clean up when the connection closes
   res.on("close", () => {
     delete transports[transport.sessionId];
   });
+  
+  // Connect the transport to the MCP server
   await server.connect(transport);
+  
+  // Now that the transport is connected and has generated its sessionId,
+  // send our own custom endpoint event with the full URL
+  res.write(`event: endpoint\ndata: https://${host}/messages?sessionId=${transport.sessionId}\n\n`);
+  
+  // We don't need to send a second event via transport.send()
 });
 
 app.post("/messages", async (req, res) => {
