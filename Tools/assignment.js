@@ -114,6 +114,53 @@ function registerAssignmentTools(server, auth) {
   );
 
   server.tool(
+    "assignments-get-all","Fetches all assignments for the authenticated user.",
+    {},
+    async () => {
+      console.error("📋 assignments-get-all tool called");
+
+      if (!auth.isAuthenticated) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              status: "error",
+              message: "User not authenticated"
+            })
+          }]
+        };
+      }
+
+      try {
+        const res = await axios.get('https://graph.microsoft.com/v1.0/education/me/assignments', {
+          headers: { Authorization: `Bearer ${auth.accessToken}` },
+          timeout: 5000
+        });
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              status: "success",
+              assignments: res.data.value
+            })
+          }]
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              status: "error",
+              message: `Error fetching assignments: ${error.message}`
+            })
+          }]
+        };
+      }
+    }
+  );
+
+  server.tool(
     "assignment-submissions-get","Fetches all submissions for a specific assignment.",
     {
       classId: z.string().describe("The ID of the class to get assignments from"),
