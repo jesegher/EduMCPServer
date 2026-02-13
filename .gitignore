@@ -3,6 +3,7 @@ LocalMCP.env
 node_modules/
 node_modules/zod/lib/benchmarks/index.js
 /node_modules
+.vscode/
 CPS.yaml
 start-mcp-server-sse-back.js
 start-mcp-server-sse.js
