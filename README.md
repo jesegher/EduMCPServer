@@ -22,15 +22,16 @@ Built for AI-driven tools, testing, and intelligent prompt integration.
 - 📝 Assignment creation, updating, and student targeting
 - 🎓 Rubric creation and re-use
 - 📤 View assignment submissions & outcomes
-- 🧠 Designed for Claude Desktop & Model Context clients
+- 🧠 Designed for VSCode and Copilot Studio
 ---
 ## 📂 Structure
 ### 🔍 Key Components
 
-- **`start-mcp-server.js`**
-  - Loads and registers all tools.
-  - Manages Microsoft authentication via MSAL.
-  - Starts the MCP server using the Model Context Protocol SDK.
+- **`start-mcp-server-streaming.js`**
+  - Loads and registers all tools with OAuth 2.0 authentication layer.
+  - Implements OAuth 2.0 server with Windows account picker integration.
+  - Manages Microsoft Graph authentication via MSAL for backend API access.
+  - Starts the MCP server using the Model Context Protocol SDK with streaming transport.
 
 - **`tools/` folder**
   - Each file defines a set of related tools and registers them with the server.
@@ -38,10 +39,11 @@ Built for AI-driven tools, testing, and intelligent prompt integration.
 
 - **`.env`**
   - Stores sensitive Microsoft app credentials and config.
-  - Required to authenticate with Microsoft Graph API.
+  - Required for Microsoft Graph API authentication.
 
 - **`Example.env`**
   - A safe template for sharing or onboarding collaborators.
+
 
 ---
 
@@ -136,40 +138,7 @@ or manually
 npm install @modelcontextprotocol/sdk axios zod dotenv @azure/msal-node
 ```
 
-## 🧠 Run with Claude Desktop
 
-To use this MCP server with Claude Desktop, add the following to your Claude Desktop `claude.settings.json` file:
-
-```json
-{
-  "mcpServers": {
-    "Education-Data": {
-      "command": "node",
-      "args": [
-        "C:\\path\\to\\your\\project\\start-mcp-server.js"
-      ],
-      "env": {
-        "TENANT_ID": "your-tenant-id",
-        "CLIENT_ID": "your-client-id",
-        "CLIENT_SECRET": "your-client-secret",
-        "REDIRECT_URI": "http://localhost:3000/auth/callback",
-        "PORT": "3000"
-      }
-    }
-  }
-}
-```
-💡 Replace the path and environment variables with your actual configuration details.
-
-⚠️ Make sure to shutdown Claude every time you make a change. You need to kill it in the task manager. 
-
-Claude will automatically detect the MCP Server and the registered tools.
-
-<img width="362" alt="image" src="https://github.com/user-attachments/assets/924c9da6-0e0b-4c5d-9927-c74517702a5c" />
-
-As soon as you request data, an authentication flow will be started. You can always trigger it manually by calling auth-login. I've noticed that Claude not always give you the url, you can find, and copy it from the call it makes to the authentication server if needed. [Fix in progress]
-
----
 
 
 ## 🧠 Scenario: Remediation Flow for Underperforming Students
