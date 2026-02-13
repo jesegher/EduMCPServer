@@ -138,8 +138,145 @@ or manually
 npm install @modelcontextprotocol/sdk axios zod dotenv @azure/msal-node
 ```
 
+---
 
+## 🚀 Azure Deployment Guide
 
+Deploy your MCP server to Azure App Service for production use with OAuth 2.0 authentication.
+
+### 1. 📋 Prerequisites
+
+- ✅ Azure subscription
+- ✅ Azure App registration (completed above)
+- ✅ Code pushed to GitHub repository
+
+### 2. 🏗️ Create Azure App Service
+
+#### Option A: Azure Portal
+1. Go to [Azure Portal](https://portal.azure.com)
+2. **Create a resource** → **Web App**
+3. Configure:
+   - **Subscription**: Your subscription
+   - **Resource Group**: Create new or use existing
+   - **Name**: `your-app-name` (e.g., `edumcp-server-prod`)
+   - **Runtime stack**: `Node 20 LTS`
+   - **Operating System**: `Linux`
+   - **Region**: Choose closest to users
+
+#### Option B: Azure CLI
+```bash
+# Create resource group
+az group create --name mcp-rg --location "East US"
+
+# Create App Service plan
+az appservice plan create --name mcp-plan --resource-group mcp-rg --sku B1 --is-linux
+
+# Create web app
+az webapp create --resource-group mcp-rg --plan mcp-plan --name your-app-name --runtime "NODE:20-lts"
+```
+
+### 3. 🔐 Configure Environment Variables
+
+In Azure Portal → Your App Service → **Configuration** → **Application settings**, add:
+
+```
+CLIENT_ID = your-azure-app-client-id
+TENANT_ID = your-tenant-id  
+CLIENT_SECRET = your-client-secret
+REDIRECT_URI = https://your-app-name.azurewebsites.net/oauth/callback
+```
+
+Or using Azure CLI:
+```bash
+az webapp config appsettings set --resource-group mcp-rg --name your-app-name --settings \
+  CLIENT_ID="your-client-id" \
+  TENANT_ID="your-tenant-id" \
+  CLIENT_SECRET="your-client-secret" \
+  REDIRECT_URI="https://your-app-name.azurewebsites.net/oauth/callback" \
+  PORT="80" \
+  WEBSITE_NODE_DEFAULT_VERSION="20.x" \
+  SCM_DO_BUILD_DURING_DEPLOYMENT="true"
+```
+
+### 4. 🔗 Update Azure App Registration
+
+Update your Azure app registration for production:
+
+1. Go to **Azure Portal** → **Entra ID** → **App registrations** → Your app
+2. **Authentication** → **Redirect URIs** → Add:
+   ```
+   https://your-app-name.azurewebsites.net/oauth/callback
+   ```
+3. **Save** the configuration
+
+### 5. 📦 Deploy Your Code
+
+#### Option A: GitHub Actions (Recommended)
+1. **Azure Portal** → Your App Service → **Deployment Center**
+2. **Source**: GitHub
+3. **Organization**: Your GitHub account
+4. **Repository**: `EduMCPServer`
+5. **Branch**: `main`
+6. **Save** - Azure creates a workflow file automatically
+
+#### Option B: Local Git
+```bash
+# Add Azure remote
+az webapp deployment source config-local-git --name your-app-name --resource-group mcp-rg
+
+# Add remote and push
+git remote add azure https://your-app-name.scm.azurewebsites.net:443/your-app-name.git
+git push azure main
+```
+
+#### Option C: VS Code Extension
+1. Install **Azure App Service** extension
+2. Right-click your project → **Deploy to Web App**
+3. Select your subscription and app service
+
+### 6. 🎯 Configure MCP Clients
+
+Update your MCP client configurations for production:
+
+#### VS Code MCP Client Config:
+```json
+{
+  "servers": {
+    "education-mcp-oauth": {
+      "type": "http",
+      "url": "https://your-app-name.azurewebsites.net/mcp",
+      "name": "Education MCP Server (Production)",
+      "description": "Microsoft Education MCP server with OAuth 2 authentication",
+      "auth": {
+        "type": "oauth2",
+        "client_id": "vscode-mcp-client",
+        "authorization_url": "https://your-app-name.azurewebsites.net/oauth/authorize",
+        "token_url": "https://your-app-name.azurewebsites.net/oauth/token",
+        "scopes": ["mcp:read", "mcp:write"]
+      }
+    }
+  }
+}
+```
+
+### 7. ✅ Verify Deployment
+
+1. **Test Endpoints**:
+   - Health check: `https://your-app-name.azurewebsites.net`
+   - OAuth discovery: `https://your-app-name.azurewebsites.net/.well-known/oauth-authorization-server`
+
+2. **Check Logs** in Azure Portal → App Service → **Log stream**
+
+3. **Test Authentication** with your MCP client
+
+### 8. 🛡️ Production Security
+
+- ✅ Use **Key Vault** for sensitive secrets (optional)
+- ✅ Enable **HTTPS only** in App Service → TLS/SSL settings
+- ✅ Configure **custom domain** (optional)
+- ✅ Set up **Application Insights** for monitoring
+
+---
 
 ## 🧠 Scenario: Remediation Flow for Underperforming Students
 
