@@ -1,7 +1,7 @@
 import axios from "axios";
 import { z } from 'zod';
 
-function registerUserTools(server, auth) {
+function registerUserTools(server, getAuth) {
   
   server.tool("user-get", "Fetches a user based on userid, UPN or search string.", {
     userId: z.string().optional().nullable(),
@@ -10,6 +10,7 @@ function registerUserTools(server, auth) {
   }, async ({ userId, userPrincipalName, search }) => {
     console.error("🔍 get-user tool called");
   
+    const auth = getAuth(); // Get current request auth
     if (!auth.isAuthenticated) {
       return {
         content: [{
@@ -126,6 +127,7 @@ server.tool("user-attributes-select-get", "Retrieves only specific attributes fr
 }, async ({ userId, fields }) => {
   console.error("🎯 user-attributes-select-get called with:", fields);
 
+  const auth = getAuth(); // Get current request auth
   if (!auth.isAuthenticated) {
     return {
       content: [{
@@ -186,6 +188,7 @@ server.tool("user-update", "Updates a user based on userId. Only fields included
   }, async ({ userId, updates }) => {
     console.error("✏️ user-update tool called");
   
+    const auth = getAuth(); // Get current request auth
     if (!auth.isAuthenticated) {
       return {
         content: [{
@@ -242,6 +245,7 @@ server.tool("user-groups-get", "Fetches the groups a user belongs to based on us
 }, async ({ userId }) => {
   console.error("👥 user-groups-get tool called");
 
+  const auth = getAuth(); // Get current request auth
   if (!auth.isAuthenticated) {
     return {
       content: [{

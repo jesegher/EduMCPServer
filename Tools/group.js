@@ -1,7 +1,7 @@
 import axios from "axios";
 import { z } from 'zod';
 
-function registerGroupTools(server, auth) {
+function registerGroupTools(server, getAuth) {
 
   // Tool to fetch a group by ID or display name
   server.tool("group-get", "Fetches a group based on groupId or display name.", {
@@ -10,6 +10,7 @@ function registerGroupTools(server, auth) {
   }, async ({ groupId, displayName }) => {
     console.error("🔍 group-get tool called");
 
+    const auth = getAuth(); // Get current request auth
     if (!auth.isAuthenticated) {
       return {
         content: [{
@@ -89,6 +90,7 @@ function registerGroupTools(server, auth) {
   }, async ({ groupId, updates }) => {
     console.error("✏️ group-update tool called");
 
+    const auth = getAuth(); // Get current request auth
     if (!auth.isAuthenticated) {
       return {
         content: [{
@@ -146,6 +148,7 @@ function registerGroupTools(server, auth) {
   }, async ({ groupId }) => {
     console.error("👥 group-members-get tool called");
 
+    const auth = getAuth(); // Get current request auth
     if (!auth.isAuthenticated) {
       return {
         content: [{

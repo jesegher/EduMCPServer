@@ -1,7 +1,7 @@
 import axios from "axios";
 import { z } from 'zod';
 
-function registerAssignmentTools(server, auth) {
+function registerAssignmentTools(server, getAuth) {
   
   // 📄 Get assignment details or list all
   server.tool(
@@ -12,7 +12,9 @@ function registerAssignmentTools(server, auth) {
       includeRubric: z.boolean().optional().default(true).describe("Whether to attempt retrieving the rubric if grading is null")
     },
     async ({ classId, assignmentId, includeRubric }) => {
-      console.error("📝 assignment_get tool called");
+      const auth = getAuth(); // Get current request auth
+      const currentRequestId = auth.requestId;
+      console.error(`📝 assignment_get tool called [${currentRequestId}] for user ${auth.userId}`);
 
       if (!auth.isAuthenticated) {
         return {
@@ -120,7 +122,9 @@ function registerAssignmentTools(server, auth) {
       assignmentId: z.string().describe("The ID of the assignment to get details for"),           
     },
     async ({ classId, assignmentId }) => {
-      console.error("📝 get-assignment-rubric tool called");
+      const auth = getAuth(); // Get current request auth
+      const currentRequestId = auth.requestId;
+      console.error(`📝 get-assignment-rubric tool called [${currentRequestId}] for user ${auth.userId}`);
       
       if (!auth.isAuthenticated) {
         return { 
@@ -189,8 +193,10 @@ function registerAssignmentTools(server, auth) {
       assignmentId: z.string().describe("The ID of the assignment to get details for"),           
       submissionId: z.string().describe("The ID of the submission to get outcome for"),           
     },
-    async ({ classId, assignmentId,submissionId }) => {
-      console.error("📝 get-assignment-rubric tool called");
+    async ({ classId, assignmentId, submissionId }) => {
+      const auth = getAuth(); // Get current request auth
+      const currentRequestId = auth.requestId;
+      console.error(`📝 assignment-submissions-outcome tool called [${currentRequestId}] for user ${auth.userId}`);
       
       if (!auth.isAuthenticated) {
         return { 
@@ -294,7 +300,8 @@ function registerAssignmentTools(server, auth) {
       resourcesFolderUrl,
       categories
     }) => {
-      console.error("📝 create-assignment tool called");
+      const auth = getAuth(); // Get current request auth
+      console.error(`📝 create-assignment tool called [${auth.requestId}] for user ${auth.userId}`);
      
       if (!auth.isAuthenticated) {
         return {
@@ -434,7 +441,8 @@ function registerAssignmentTools(server, auth) {
       assignTo,
       instructions
      }) => {
-      console.error("📝 update-assignment tool called");
+      const auth = getAuth(); // Get current request auth
+      console.error(`📝 update-assignment tool called [${auth.requestId}] for user ${auth.userId}`);
      
       if (!auth.isAuthenticated) {
         return {
@@ -520,7 +528,8 @@ function registerAssignmentTools(server, auth) {
       rubricId: z.string().describe("The ID of the rubric to attach to the assignment")
     },
     async ({ classId, assignmentId, rubricId }) => {
-      console.error("📎 attach-rubric-to-assignment tool called");
+      const auth = getAuth(); // Get current request auth
+      console.error(`📎 attach-rubric-to-assignment tool called [${auth.requestId}] for user ${auth.userId}`);
   
       if (!auth.isAuthenticated) {
         return {

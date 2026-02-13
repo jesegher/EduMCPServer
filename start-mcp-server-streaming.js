@@ -43,8 +43,6 @@ const graphScopes = [
   "https://graph.microsoft.com/Directory.ReadWrite.All"
 ];
 
-const auth = { accessToken: null, isAuthenticated: false };
-
 // OAuth 2 Server setup
 const oauthTokens = new Map(); // Store issued OAuth tokens
 const oauthCodes = new Map();  // Store authorization codes
@@ -144,12 +142,23 @@ const server = new McpServer({
 
 console.error("📝 Registering tools...");
 
-registerAuthTools(server, auth, msalClient, pendingAuthStates, graphScopes);
-registerAssignmentTools(server, auth);
-registerRubricTools(server, auth);
-registerClassTools(server, auth);
-registerUserTools(server, auth);
-registerGroupTools(server, auth);
+// Simple global auth state that persists
+global.mcpAuth = { 
+  accessToken: null, 
+  isAuthenticated: false,
+  requestId: null,
+  userId: null
+};
+
+// Simple getAuth function
+const getAuth = () => global.mcpAuth;
+
+registerAuthTools(server, getAuth, msalClient, pendingAuthStates, graphScopes);
+registerAssignmentTools(server, getAuth);
+registerRubricTools(server, getAuth);
+registerClassTools(server, getAuth);
+registerUserTools(server, getAuth);
+registerGroupTools(server, getAuth);
 
 const app = express();
 
@@ -533,19 +542,26 @@ const transportOptions = {
 
 // Main MCP endpoint with OAuth 2 protection
 app.all("/mcp", validateOAuthToken, async (req, res) => {
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   try {
-    console.log(`📨 ${req.method} authenticated MCP request from user: ${req.oauth.userId}`);
+    console.log(`📨 ${req.method} authenticated MCP request from user: ${req.oauth.userId} [${requestId}]`);
     console.log(`📋 Headers:`, req.headers);
     if (req.body) {
       console.log(`📦 Body:`, JSON.stringify(req.body, null, 2));
     }
     
-    // Set up auth context for MCP tools to use Microsoft Graph token  
-    auth.accessToken = req.oauth.msGraphToken;
-    auth.isAuthenticated = true;
+    // Set auth context for this request BEFORE tool execution
+    global.mcpAuth.accessToken = req.oauth.msGraphToken;
+    global.mcpAuth.isAuthenticated = true; 
+    global.mcpAuth.requestId = requestId;
+    global.mcpAuth.userId = req.oauth.userId;
+    
+    console.log(`🔐 Auth context set [${requestId}] for user ${req.oauth.userId}`);
+    console.log(`🔐 Token available: ${!!global.mcpAuth.accessToken}`);
+    console.log(`🔐 Token length: ${global.mcpAuth.accessToken ? global.mcpAuth.accessToken.length : 'null'}`);
     
     // Create a fresh transport for each request (stateless mode)
-    console.log(`🔄 Creating stateless transport for authenticated request`);
+    console.log(`🔄 Creating stateless transport for authenticated request [${requestId}]`);
     const transport = new StreamableHTTPServerTransport(transportOptions);
     
     // Connect the server to the transport
@@ -564,6 +580,9 @@ app.all("/mcp", validateOAuthToken, async (req, res) => {
     if (!res.headersSent) {
       res.status(500).json({ error: "Internal server error", details: error.message });
     }
+  } finally {
+    // Don't clean up auth context - keep it for subsequent requests
+    console.log(`✅ Request completed [${requestId}] - auth context preserved`);
   }
 });
 

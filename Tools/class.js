@@ -1,7 +1,7 @@
 import axios from "axios";
 import { z } from 'zod';
 
-function registerClassTools(server, auth) {
+function registerClassTools(server, getAuth) {
   
     server.tool(
         "class_get","Gets all classes or a specific class with optional search.",
@@ -12,6 +12,12 @@ function registerClassTools(server, auth) {
         async ({ classId, search }) => {
             console.error("📚 class_get tool called");
         
+            const auth = getAuth(); // Get current request auth
+            console.error(`📚 DEBUG - Auth object:`, JSON.stringify(auth, null, 2));
+            console.error(`📚 DEBUG - isAuthenticated: ${auth.isAuthenticated}`);
+            console.error(`📚 DEBUG - accessToken exists: ${!!auth.accessToken}`);
+            console.error(`📚 DEBUG - accessToken length: ${auth.accessToken ? auth.accessToken.length : 'null'}`);
+            
             if (!auth.isAuthenticated || !auth.accessToken) {
             return {
                 content: [{

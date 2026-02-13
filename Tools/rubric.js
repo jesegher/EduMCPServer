@@ -1,7 +1,7 @@
 import axios from "axios";
 import { z } from 'zod';
 
-function registerRubricTools(server, auth) {
+function registerRubricTools(server, getAuth) {
   
 server.tool(
     "rubric-create-get","Creates a rubric if one doesn't already exist with the same display name.",
@@ -24,6 +24,7 @@ server.tool(
     async ({ displayName, maxPoints, qualities }) => {
       console.error("🔁 create-or-get-rubric tool called");
   
+      const auth = getAuth(); // Get current request auth
       if (!auth.isAuthenticated) {
         return {
           content: [{
@@ -138,6 +139,7 @@ server.tool(
     async () => {
       console.error("📋 rubric_list tool called");
   
+      const auth = getAuth(); // Get current request auth
       if (!auth.isAuthenticated) {
         return {
           content: [{

@@ -4,7 +4,7 @@
 
 This project is a custom **Model Context Protocol (MCP) server** built to integrate with **Microsoft Graph API** for Education.
 
-It enables Claude Desktop or other MCP-compatible tools to manage:
+It enables VSCode or Copilot Studio Agents to manage:
 - ✅ Microsoft Education Classes
 - ✅ Assignments (create, update, target students)
 - ✅ Rubrics (create, attach, list)
