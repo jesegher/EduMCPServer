@@ -2,9 +2,9 @@
   "name": "mcp-working-example",
   "version": "1.0.0",
   "type": "module",
-  "main": "start-mcp-server-sse.js",
+  "main": "start-mcp-server-streaming.js",
   "scripts": {
-    "start": "node start-mcp-server-sse.js"
+    "start": "node start-mcp-server-streaming.js"
   },
   "dependencies": {
     "express": "^4.18.2",

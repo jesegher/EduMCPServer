@@ -1,0 +1,4 @@
+{
+    "appService.defaultWebAppToDeploy": "/subscriptions/5af4364d-b249-4304-9ebf-5454445d6c58/resourceGroups/mcp-rg/providers/Microsoft.Web/sites/edumcpserver-streaming",
+    "appService.deploySubpath": "."
+}
