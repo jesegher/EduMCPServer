@@ -703,13 +703,16 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || process.env.WEBSITES_PORT || 3001;
+const BASE_URL = process.env.WEBSITE_HOSTNAME 
+  ? `https://${process.env.WEBSITE_HOSTNAME}` 
+  : `http://localhost:${PORT}`;
 
 app.listen(PORT, () => {
   console.log(`✅ MCP OAuth 2 Server is running on port ${PORT}`);
-  console.log(`🔗 MCP endpoint: https://edumcpserver-streaming.azurewebsites.net/mcp`);
-  console.log(`🔐 OAuth Authorization: https://edumcpserver-streaming.azurewebsites.net/oauth/authorize`);
-  console.log(`🎫 OAuth Token: https://edumcpserver-streaming.azurewebsites.net/oauth/token`);
-  console.log(`📋 OAuth Discovery: https://edumcpserver-streaming.azurewebsites.net/.well-known/oauth-authorization-server`);
+  console.log(`🔗 MCP endpoint: ${BASE_URL}/mcp`);
+  console.log(`🔐 OAuth Authorization: ${BASE_URL}/oauth/authorize`);
+  console.log(`🎫 OAuth Token: ${BASE_URL}/oauth/token`);
+  console.log(`📋 OAuth Discovery: ${BASE_URL}/.well-known/oauth-authorization-server`);
   console.log(`🪟 Authentication: Microsoft Entra ID with Windows account picker`);
   console.log(`📋 Protocol: Streamable HTTPS with OAuth 2 protection`);
 });
