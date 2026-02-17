@@ -46,6 +46,7 @@ const graphScopes = [
 // OAuth 2 Server setup
 const oauthTokens = new Map(); // Store issued OAuth tokens
 const oauthCodes = new Map();  // Store authorization codes
+const oauthRefreshTokens = new Map(); // Store refresh tokens
 
 // Pre-registered OAuth clients - Only VSCode, MCP Inspector and CPS 
 const oauthClients = {
@@ -192,7 +193,7 @@ app.get('/.well-known/oauth-authorization-server', (req, res) => {
     authorization_endpoint: `${baseUrl}/oauth/authorize`,
     token_endpoint: `${baseUrl}/oauth/token`,
     response_types_supported: ["code"],
-    grant_types_supported: ["authorization_code"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
     scopes_supported: ["mcp:read", "mcp:write"],
     code_challenge_methods_supported: ["S256"],
     token_endpoint_auth_methods_supported: ["none"],
@@ -451,13 +452,94 @@ app.post('/oauth/token', async (req, res) => {
       redirect_uri,
       client_id,
       client_secret,
-      code_verifier
+      code_verifier,
+      refresh_token
     } = req.body;
 
+    // Handle refresh token grant
+    if (grant_type === 'refresh_token') {
+      console.log('🔄 Processing refresh token request');
+      
+      const refreshData = oauthRefreshTokens.get(refresh_token);
+      if (!refreshData) {
+        console.error('❌ Invalid refresh token');
+        return res.status(400).json({
+          error: 'invalid_grant',
+          error_description: 'Invalid refresh token'
+        });
+      }
+
+      // Check if refresh token is expired (30 days)
+      if (refreshData.expiresAt < Date.now()) {
+        console.error('❌ Refresh token expired');
+        oauthRefreshTokens.delete(refresh_token);
+        return res.status(400).json({
+          error: 'invalid_grant',
+          error_description: 'Refresh token expired'
+        });
+      }
+
+      // Try to get a fresh MS Graph token using MSAL cache
+      let msGraphToken = refreshData.msGraphToken;
+      try {
+        const accounts = await msalClient.getTokenCache().getAllAccounts();
+        const account = accounts.find(a => a.homeAccountId === refreshData.userId);
+        if (account) {
+          const silentResult = await msalClient.acquireTokenSilent({
+            scopes: graphScopes,
+            account: account
+          });
+          msGraphToken = silentResult.accessToken;
+          console.log('✅ Refreshed MS Graph token silently');
+        }
+      } catch (silentError) {
+        console.log('⚠️ Could not refresh MS Graph token silently, using cached token');
+      }
+
+      // Generate new tokens
+      const newAccessToken = generateToken();
+      const newRefreshToken = generateToken();
+      
+      const newTokenData = {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        tokenType: 'Bearer',
+        expiresAt: Date.now() + (60 * 60 * 1000), // 1 hour
+        scopes: refreshData.scopes,
+        userId: refreshData.userId,
+        msGraphToken: msGraphToken,
+        createdAt: Date.now()
+      };
+
+      // Store new tokens
+      oauthTokens.set(newAccessToken, newTokenData);
+      oauthRefreshTokens.set(newRefreshToken, {
+        userId: refreshData.userId,
+        scopes: refreshData.scopes,
+        msGraphToken: msGraphToken,
+        clientId: refreshData.clientId,
+        expiresAt: Date.now() + (30 * 24 * 60 * 60 * 1000) // 30 days
+      });
+
+      // Invalidate old refresh token (rotation)
+      oauthRefreshTokens.delete(refresh_token);
+
+      console.log(`✅ Token refreshed successfully for user: ${refreshData.userId}`);
+
+      return res.json({
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+        token_type: 'Bearer',
+        expires_in: 3600,
+        scope: refreshData.scopes.join(' ')
+      });
+    }
+
+    // Handle authorization code grant
     if (grant_type !== 'authorization_code') {
       return res.status(400).json({
         error: 'unsupported_grant_type',
-        error_description: 'Only authorization_code grant type is supported'
+        error_description: 'Only authorization_code and refresh_token grant types are supported'
       });
     }
 
@@ -502,6 +584,15 @@ app.post('/oauth/token', async (req, res) => {
     };
 
     oauthTokens.set(accessToken, tokenData);
+    
+    // Store refresh token for later use
+    oauthRefreshTokens.set(refreshToken, {
+      userId: codeData.userId,
+      scopes: codeData.scope.split(' '),
+      msGraphToken: codeData.msGraphToken,
+      clientId: client_id,
+      expiresAt: Date.now() + (30 * 24 * 60 * 60 * 1000) // 30 days
+    });
 
     // Clean up authorization code
     oauthCodes.delete(code);
