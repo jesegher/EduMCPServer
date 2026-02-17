@@ -72,11 +72,14 @@ To use Microsoft Graph API with this project, you need to register an app in Ent
 3. Fill in:
    - **Name**: `Microsoft Education MCP Server` (or any name you prefer)
    - **Supported account types**: Choose based on your scenario (usually "Accounts in this organizational directory only")
-   - **Redirect URI**:  
-     - Platform: `Web`  
-     - URI: `https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback`
+   - **Redirect URI**: Leave blank for now (will be added after Azure App Service is created)
 
 4. Click **"Register"**
+
+> ⚠️ **Note**: After creating your Azure App Service, return here to add the Redirect URI:
+> 1. Go to **Authentication** → **Add a platform** → **Web**
+> 2. Add: `https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback`
+> 3. Click **Save**
 
 ---
 
@@ -164,6 +167,10 @@ REDIRECT_URI = https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback
 4. **Branch**: `main`
 5. **Repository Type**: Public
 6. **Save**
+
+> ⚠️ **Note**: Requires SCM Basic Authentication to be enabled.  
+> Go to **App Service** → **Configuration** → **General settings** → **SCM Basic Auth Publishing Credentials** → **On**
+
 
 #### Option B: VS Code Extension
 1. Install **Azure App Service** extension
