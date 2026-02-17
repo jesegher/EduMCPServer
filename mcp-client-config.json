@@ -1,17 +1,8 @@
 {
   "servers": {
-    "education-mcp-oauth": {
-      "type": "http",
+    "EDUMCP Server": {
       "url": "https://edumcpserver-streaming.azurewebsites.net/mcp",
-      "name": "Education MCP Server with OAuth 2",
-      "description": "Microsoft Education MCP server with OAuth 2 authentication",
-      "auth": {
-        "type": "oauth2",
-        "client_id": "vscode-mcp-client",
-        "authorization_url": "https://edumcpserver-streaming.azurewebsites.net/oauth/authorize",
-        "token_url": "https://edumcpserver-streaming.azurewebsites.net/oauth/token",
-        "scopes": ["mcp:read", "mcp:write"]
-      }
+      "type": "http"
     }
   }
 }

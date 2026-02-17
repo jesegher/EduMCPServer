@@ -74,7 +74,7 @@ To use Microsoft Graph API with this project, you need to register an app in Ent
    - **Supported account types**: Choose based on your scenario (usually "Accounts in this organizational directory only")
    - **Redirect URI**:  
      - Platform: `Web`  
-     - URI: `http://localhost:3000/auth/callback` (or your custom URI)
+     - URI: `https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback`
 
 4. Click **"Register"**
 
@@ -115,30 +115,10 @@ After registration, go to **"Overview"** and copy these values:
 CLIENT_ID=your-application-id
 CLIENT_SECRET=your-client-secret
 TENANT_ID=your-directory-id
-REDIRECT_URI=http://localhost:3000/auth/callback
+REDIRECT_URI=https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback
 ```
 ---
 
-## 📥 Clone the Repository and Install Dependencies
-
-Follow these steps to get the project running locally:
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/jesegher/EduMCPServer.git
-cd EDUMCPServer
-```
-### 2. Install dependencies
-```bash
-npm install
-```
-or manually
-```bash
-npm install @modelcontextprotocol/sdk axios zod dotenv @azure/msal-node
-```
-
----
 
 ## 🚀 Azure Deployment Guide
 
@@ -159,21 +139,10 @@ Deploy your MCP server to Azure App Service for production use with OAuth 2.0 au
    - **Subscription**: Your subscription
    - **Resource Group**: Create new or use existing
    - **Name**: `your-app-name` (e.g., `edumcp-server-prod`)
-   - **Runtime stack**: `Node 20 LTS`
+   - **Runtime stack**: `Node 22 LTS`
    - **Operating System**: `Linux`
    - **Region**: Choose closest to users
 
-#### Option B: Azure CLI
-```bash
-# Create resource group
-az group create --name mcp-rg --location "East US"
-
-# Create App Service plan
-az appservice plan create --name mcp-plan --resource-group mcp-rg --sku B1 --is-linux
-
-# Create web app
-az webapp create --resource-group mcp-rg --plan mcp-plan --name your-app-name --runtime "NODE:20-lts"
-```
 
 ### 3. 🔐 Configure Environment Variables
 
@@ -183,43 +152,24 @@ In Azure Portal → Your App Service → **Configuration** → **Application set
 CLIENT_ID = your-azure-app-client-id
 TENANT_ID = your-tenant-id  
 CLIENT_SECRET = your-client-secret
-REDIRECT_URI = https://your-app-name.azurewebsites.net/oauth/callback
+REDIRECT_URI = https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback
 ```
 
-Or using Azure CLI:
-```bash
-az webapp config appsettings set --resource-group mcp-rg --name your-app-name --settings \
-  CLIENT_ID="your-client-id" \
-  TENANT_ID="your-tenant-id" \
-  CLIENT_SECRET="your-client-secret" \
-  REDIRECT_URI="https://your-app-name.azurewebsites.net/oauth/callback" \
-  PORT="80" \
-  WEBSITE_NODE_DEFAULT_VERSION="20.x" \
-  SCM_DO_BUILD_DURING_DEPLOYMENT="true"
-```
+### 4. 📦 Deploy Your Code
 
-### 4. 🔗 Update Azure App Registration
-
-Update your Azure app registration for production:
-
-1. Go to **Azure Portal** → **Entra ID** → **App registrations** → Your app
-2. **Authentication** → **Redirect URIs** → Add:
-   ```
-   https://your-app-name.azurewebsites.net/oauth/callback
-   ```
-3. **Save** the configuration
-
-### 5. 📦 Deploy Your Code
-
-#### Option A: GitHub Actions (Recommended)
+#### Option A: External Git (Recommended)
 1. **Azure Portal** → Your App Service → **Deployment Center**
-2. **Source**: GitHub
-3. **Organization**: Your GitHub account
-4. **Repository**: `EduMCPServer`
-5. **Branch**: `main`
-6. **Save** - Azure creates a workflow file automatically
+2. **Source**: External Git
+3. **Repository**: `https://github.com/jesegher/EduMCPServer.git`
+4. **Branch**: `main`
+5. **Repository Type**: Public
+6. **Save**
 
 #### Option B: Local Git
+
+> ⚠️ **Note**: Requires SCM Basic Authentication to be enabled.  
+> Go to **App Service** → **Configuration** → **General settings** → **SCM Basic Auth Publishing Credentials** → **On**
+
 ```bash
 # Add Azure remote
 az webapp deployment source config-local-git --name your-app-name --resource-group mcp-rg
@@ -234,32 +184,27 @@ git push azure main
 2. Right-click your project → **Deploy to Web App**
 3. Select your subscription and app service
 
-### 6. 🎯 Configure MCP Clients
+### 5. 🎯 Configure MCP Clients
 
 Update your MCP client configurations for production:
 
 #### VS Code MCP Client Config:
+
+Add to your VS Code `mcp.json` (User settings):
 ```json
 {
   "servers": {
-    "education-mcp-oauth": {
-      "type": "http",
+    "EDUMCP Server": {
       "url": "https://your-app-name.azurewebsites.net/mcp",
-      "name": "Education MCP Server (Production)",
-      "description": "Microsoft Education MCP server with OAuth 2 authentication",
-      "auth": {
-        "type": "oauth2",
-        "client_id": "vscode-mcp-client",
-        "authorization_url": "https://your-app-name.azurewebsites.net/oauth/authorize",
-        "token_url": "https://your-app-name.azurewebsites.net/oauth/token",
-        "scopes": ["mcp:read", "mcp:write"]
-      }
+      "type": "http"
     }
   }
 }
 ```
 
-### 7. ✅ Verify Deployment
+VS Code automatically discovers OAuth configuration via the `/.well-known/oauth-authorization-server` endpoint.
+
+### 6. ✅ Verify Deployment
 
 1. **Test Endpoints**:
    - Health check: `https://your-app-name.azurewebsites.net`
@@ -269,7 +214,7 @@ Update your MCP client configurations for production:
 
 3. **Test Authentication** with your MCP client
 
-### 8. 🛡️ Production Security
+### 7. 🛡️ Production Security
 
 - ✅ Use **Key Vault** for sensitive secrets (optional)
 - ✅ Enable **HTTPS only** in App Service → TLS/SSL settings
