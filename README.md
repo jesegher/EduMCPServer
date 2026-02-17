@@ -165,21 +165,7 @@ REDIRECT_URI = https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback
 5. **Repository Type**: Public
 6. **Save**
 
-#### Option B: Local Git
-
-> ⚠️ **Note**: Requires SCM Basic Authentication to be enabled.  
-> Go to **App Service** → **Configuration** → **General settings** → **SCM Basic Auth Publishing Credentials** → **On**
-
-```bash
-# Add Azure remote
-az webapp deployment source config-local-git --name your-app-name --resource-group mcp-rg
-
-# Add remote and push
-git remote add azure https://your-app-name.scm.azurewebsites.net:443/your-app-name.git
-git push azure main
-```
-
-#### Option C: VS Code Extension
+#### Option B: VS Code Extension
 1. Install **Azure App Service** extension
 2. Right-click your project → **Deploy to Web App**
 3. Select your subscription and app service
