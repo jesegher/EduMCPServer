@@ -247,3 +247,10 @@ Each prompt serves as a step in a larger automated or AI-assisted education work
 - Recommending learning interventions
 - Creating and assigning personalized remediation tasks
 
+## 🖥️ Scenario: In Copilot Studio, prep for a Parent-Teacher Conference
+**Prompt:** Can you give me a full performance overview of Al Frederickson in preparation of my parent-teacher conference with his parents? 
+**Visualization in Copilot Studio**
+<img width="920" height="604" alt="image" src="https://github.com/user-attachments/assets/e08bd525-4ecc-45b2-9739-2a620b6f9f4a" />
+
+
+
