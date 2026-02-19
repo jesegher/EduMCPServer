@@ -5,10 +5,10 @@ function registerAssignmentTools(server, getAuth) {
   
   // 📄 Get assignment details or list all
   server.tool(
-    "assignment_get","Use this function when you need to get assignment details or list all assignments",
+    "assignment_get","Use this function when you need to get assignment details or list assignments. Provide classId + assignmentId for a specific assignment, classId only for all assignments in a class, or no params for all your assignments.",
     {
-      classId: z.string().optional().describe("The class ID of the assignment (required for getting a specific assignment)"),
-      assignmentId: z.string().optional().describe("The assignment ID to fetch details for"),
+      classId: z.string().optional().describe("The class ID - required for getting a specific assignment or listing assignments in a class"),
+      assignmentId: z.string().optional().describe("The assignment ID to fetch details for (requires classId)"),
       includeRubric: z.boolean().optional().default(true).describe("Whether to attempt retrieving the rubric if grading is null")
     },
     async ({ classId, assignmentId, includeRubric }) => {
@@ -82,7 +82,46 @@ function registerAssignmentTools(server, getAuth) {
         }
       }
 
-      // 📋 List all assignments
+      // 📋 List assignments for a specific class
+      if (classId) {
+        try {
+          const res = await axios.get(
+            `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments`,
+            {
+              headers: { Authorization: `Bearer ${auth.accessToken}` },
+              timeout: 5000
+            }
+          );
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                status: "success",
+                classId: classId,
+                assignments: res.data.value.map(assignment => ({
+                  id: assignment.id,
+                  displayName: assignment.displayName,
+                  dueDateTime: assignment.dueDateTime,
+                  status: assignment.status
+                }))
+              })
+            }]
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                status: "error",
+                message: `Error fetching class assignments: ${error.message}`
+              })
+            }]
+          };
+        }
+      }
+
+      // 📋 List all assignments for current user
       try {
         const res = await axios.get('https://graph.microsoft.com/v1.0/education/me/assignments', {
           headers: { Authorization: `Bearer ${auth.accessToken}` },
@@ -96,7 +135,10 @@ function registerAssignmentTools(server, getAuth) {
               status: "success",
               assignments: res.data.value.map(assignment => ({
                 id: assignment.id,
-                displayName: assignment.displayName
+                classId: assignment.classId,
+                displayName: assignment.displayName,
+                dueDateTime: assignment.dueDateTime,
+                status: assignment.status
               }))
             })
           }]
