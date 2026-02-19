@@ -135,7 +135,7 @@ Deploy your MCP server to Azure App Service for production use with OAuth 2.0 au
 
 ### 2. 🏗️ Create Azure App Service
 
-#### Option A: Azure Portal
+#### Azure Portal
 1. Go to [Azure Portal](https://portal.azure.com)
 2. **Create a resource** → **Web App**
 3. Configure:
@@ -158,7 +158,35 @@ CLIENT_SECRET = your-client-secret
 REDIRECT_URI = https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback
 ```
 
-### 4. 📦 Deploy Your Code
+### 4. � Add Redirect URI in Entra ID (Azure AD)
+
+Now that your App Service is created and you have the URL, you **must** go back to your app registration and add the redirect URI.
+
+> ⚠️ **Important**: If you skipped adding the redirect URI during app registration, authentication will fail until you complete this step.
+
+#### Steps to Add the Redirect URI:
+
+1. Go to [Microsoft Entra Admin Center](https://entra.microsoft.com)
+2. Navigate to **"Applications" → "App registrations"**
+3. Select your registered application from the list
+4. In the left sidebar, click **"Authentication"**
+5. Under **"Platform configurations"**, click **"Add a platform"**
+6. Select **"Web"**
+7. In the **"Redirect URIs"** field, enter:
+   ```
+   https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback
+   ```
+   Replace `<YOUR_APP_NAME>` with your actual Azure App Service name (e.g., `edumcp-server-prod`).
+8. Click **"Configure"** to save
+
+#### If You Already Have a Web Platform Configured:
+1. Under **"Platform configurations"** → **"Web"**, click **"Add URI"**
+2. Enter your redirect URI: `https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback`
+3. Click **"Save"** at the top of the page
+
+> 💡 **Tip**: For local development, you can also add `http://localhost:3001/oauth/callback` as an additional redirect URI.
+
+### 5. �📦 Deploy Your Code
 
 #### Option A: External Git (Recommended)
 1. **Azure Portal** → Your App Service → **Deployment Center**
@@ -177,7 +205,7 @@ REDIRECT_URI = https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback
 2. Right-click your project → **Deploy to Web App**
 3. Select your subscription and app service
 
-### 5. 🎯 Configure MCP Clients
+### 6. 🎯 Configure MCP Clients
 
 Update your MCP client configurations for production:
 
@@ -197,7 +225,7 @@ Add to your VS Code `mcp.json` (User settings):
 
 VS Code automatically discovers OAuth configuration via the `/.well-known/oauth-authorization-server` endpoint.
 
-### 6. ✅ Verify Deployment
+### 7. ✅ Verify Deployment
 
 1. **Test Endpoints**:
    - Health check: `https://your-app-name.azurewebsites.net`
@@ -207,7 +235,7 @@ VS Code automatically discovers OAuth configuration via the `/.well-known/oauth-
 
 3. **Test Authentication** with your MCP client
 
-### 7. 🛡️ Production Security
+### 8. 🛡️ Production Security
 
 - ✅ Use **Key Vault** for sensitive secrets (optional)
 - ✅ Enable **HTTPS only** in App Service → TLS/SSL settings
