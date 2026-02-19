@@ -525,9 +525,10 @@ function registerAssignmentTools(server, getAuth) {
     {
       classId: z.string().describe("The ID of the class that contains the assignment"),
       assignmentId: z.string().describe("The ID of the assignment to attach the rubric to"),
-      rubricId: z.string().describe("The ID of the rubric to attach to the assignment")
+      rubricId: z.string().describe("The ID of the rubric to attach to the assignment"),
+      forceReplace: z.boolean().optional().default(false).describe("If true, replace the existing rubric. If false (default), return an error if a rubric is already attached.")
     },
-    async ({ classId, assignmentId, rubricId }) => {
+    async ({ classId, assignmentId, rubricId, forceReplace }) => {
       const auth = getAuth(); // Get current request auth
       console.error(`📎 attach-rubric-to-assignment tool called [${auth.requestId}] for user ${auth.userId}`);
   
@@ -544,6 +545,41 @@ function registerAssignmentTools(server, getAuth) {
       }
   
       try {
+        // Check if a rubric is already attached to the assignment
+        let existingRubric = null;
+        try {
+          const rubricCheckRes = await axios.get(
+            `https://graph.microsoft.com/v1.0/education/classes/${classId}/assignments/${assignmentId}/rubric`,
+            {
+              headers: { Authorization: `Bearer ${auth.accessToken}` },
+              timeout: 5000
+            }
+          );
+          existingRubric = rubricCheckRes.data;
+        } catch (checkError) {
+          // 404 means no rubric attached, which is fine
+          if (checkError.response?.status !== 404) {
+            throw checkError;
+          }
+        }
+
+        // If a rubric already exists and forceReplace is false, return error
+        if (existingRubric && !forceReplace) {
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                status: "error",
+                message: "A rubric is already attached to this assignment. Set forceReplace to true to replace it.",
+                existingRubric: {
+                  id: existingRubric.id,
+                  displayName: existingRubric.displayName
+                }
+              })
+            }]
+          };
+        }
+
         const odataRef = {
           "@odata.id": `https://graph.microsoft.com/v1.0/education/me/rubrics/${rubricId}`
         };
@@ -562,7 +598,7 @@ function registerAssignmentTools(server, getAuth) {
             type: "text",
             text: JSON.stringify({
               status: "success",
-              message: "Rubric attached successfully.",
+              message: existingRubric ? "Rubric replaced successfully." : "Rubric attached successfully.",
               result: response.data
             })
           }]
