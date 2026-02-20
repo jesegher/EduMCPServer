@@ -89,9 +89,8 @@ To use Microsoft Graph API with this project, you need to register an app in Ent
 2. Click **"Add a permission" → Microsoft Graph → Delegated permissions**
 3. Add the following:
    - `User.ReadWrite.All`
-   - `EduAssignments.ReadWrite.All`
-   - `EduRoster.ReadWrite.All`
-   - `EduRubrics.ReadWrite`
+   - `EduAssignments.ReadWrite`
+   - `EduRoster.ReadWrite`
    - `offline_access`
    - `openid`
    - `profile`
