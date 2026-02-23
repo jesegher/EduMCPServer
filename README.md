@@ -150,7 +150,7 @@ Deploy your MCP server to Azure App Service for production use with OAuth 2.0 au
 3. Configure:
    - **Subscription**: Your subscription
    - **Resource Group**: Create new or use existing (e.g., `edumcp-resource-group`)
-   - **Name**: `your-app-name` (e.g., `edumcp-server-prod`)
+   - **Name**: `your-app-name` (choose a name that makes sense for your organization. It has to be a name that is unique in the Azure stack.)
    - **Publish**: `Code`
    - **Runtime stack**: `Node 22 LTS`
    - **Operating System**: `Linux`
