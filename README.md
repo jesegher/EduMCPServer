@@ -76,26 +76,32 @@ To use Microsoft Graph API with this project, you need to register an app in Ent
 
 4. Click **"Register"**
 
-> ⚠️ **Note**: After creating your Azure App Service, return here to add the Redirect URI:
-> 1. Go to **Authentication** → **Add a platform** → **Web**
-> 2. Add: `https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback`
-> 3. Click **Save**
-
 ---
 
 ### 3. Configure API Permissions
 
 1. After registration, go to **"API permissions"**
 2. Click **"Add a permission" → Microsoft Graph → Delegated permissions**
-3. Add the following:
-   - `User.ReadWrite.All`
-   - `EduAssignments.ReadWrite`
-   - `EduRoster.ReadWrite`
+3. Add the following permissions (use the search/filter to find each one):
+
+   **OpenID permissions:**
    - `offline_access`
    - `openid`
    - `profile`
 
-4. Click **"Grant admin consent"** to approve them for your tenant.
+   **EduAssignments:**
+   - `EduAssignments.ReadWrite`
+
+   **EduRoster:**
+   - `EduRoster.ReadWrite`
+
+   **User:**
+   - `User.ReadWrite.All`
+
+4. Click **"Add permissions"**
+5. Then, in **"Configured permissions"**, click **"Grant admin consent for [your tenant]"** to approve them for all users in your tenant.
+
+> 💡 **Tip**: The "Grant admin consent" button only appears if you are signed in with an admin account. This step ensures all users (not just the admin) can use these permissions.
 
 ---
 
@@ -103,22 +109,26 @@ To use Microsoft Graph API with this project, you need to register an app in Ent
 
 1. Go to **"Certificates & secrets"**
 2. Under **Client secrets**, click **"New client secret"**
-3. Add a description and choose an expiration (e.g. 6 months or 12 months)
-4. Click **"Add"**
-5. **Copy the value** — you won’t be able to see it again!
+3. **Description**: Type any label you like (e.g., `mcp-server-secret`) — this is just a friendly name to help you identify it later.
+4. **Expires**: Choose an expiration period (e.g., 6 months or 12 months)
+5. Click **"Add"**
+6. **Copy the "Value" immediately** — this is your `CLIENT_SECRET`. You won't be able to see it again after leaving this page!
+
+> ⚠️ **Important**: The "Value" column is your secret, not the "Secret ID". Save it somewhere safe (e.g., a password manager or a notepad) — you'll need it later.
 
 ---
 
-### 5. Save These Values in a notepad
+### 5. Save These Values
 
-After registration, go to **"Overview"** and copy these values:
+Go to your app registration's **"Overview"** page and copy these values. Save them in a notepad — you'll need them during Azure deployment.
 
-```env
-CLIENT_ID=your-application-id
-CLIENT_SECRET=your-client-secret
-TENANT_ID=your-directory-id
-REDIRECT_URI=https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback
-```
+| Name | Where to find it |
+|------|------------------|
+| `CLIENT_ID` | **Application (client) ID** on the Overview page |
+| `CLIENT_SECRET` | The **Value** you copied in Step 4 |
+| `TENANT_ID` | **Directory (tenant) ID** on the Overview page |
+| `REDIRECT_URI` | We'll create this in the Azure Deployment section below — skip it for now |
+
 ---
 
 
@@ -139,23 +149,33 @@ Deploy your MCP server to Azure App Service for production use with OAuth 2.0 au
 2. **Create a resource** → **Web App**
 3. Configure:
    - **Subscription**: Your subscription
-   - **Resource Group**: Create new or use existing
+   - **Resource Group**: Create new or use existing (e.g., `edumcp-resource-group`)
    - **Name**: `your-app-name` (e.g., `edumcp-server-prod`)
+   - **Publish**: `Code`
    - **Runtime stack**: `Node 22 LTS`
    - **Operating System**: `Linux`
-   - **Region**: Choose closest to users
+   - **Region**: Choose closest to your users
+   - **Linux Plan**: Default
+   - **Pricing Plan**: Default
+4. Click **"Review + create"**, then after validation click **"Create"**. It should deploy in a minute or two.
 
 
 ### 3. 🔐 Configure Environment Variables
 
-In Azure Portal → Your App Service → **Configuration** → **Application settings**, add:
+In Azure Portal → **App Services** → **[Your App]** → **Settings** → **Environment Variables** → click **"+ Add"**:
 
-```
-CLIENT_ID = your-azure-app-client-id
-TENANT_ID = your-tenant-id  
-CLIENT_SECRET = your-client-secret
-REDIRECT_URI = https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback
-```
+Add the following four environment variables (Name → Value):
+
+| Name | Value |
+|------|-------|
+| `CLIENT_ID` | Your Application (client) ID from Entra |
+| `TENANT_ID` | Your Directory (tenant) ID from Entra |
+| `CLIENT_SECRET` | The client secret Value you saved earlier |
+| `REDIRECT_URI` | `https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback` |
+
+> Replace `<YOUR_APP_NAME>` with the App Service name you chose in Step 2 (e.g., `edumcp-server-prod`).
+
+Once all four are added, click **"Apply"** and then **"Confirm"** to restart the app service.
 
 ### 4. � Add Redirect URI in Entra ID (Azure AD)
 
@@ -166,7 +186,7 @@ Now that your App Service is created and you have the URL, you **must** go back 
 #### Steps to Add the Redirect URI:
 
 1. Go to [Microsoft Entra Admin Center](https://entra.microsoft.com)
-2. Navigate to **"Applications" → "App registrations"**
+2. Navigate to **"Entra ID" → "App registrations"**
 3. Select your registered application from the list
 4. In the left sidebar, click **"Authentication"**
 5. Under **"Platform configurations"**, click **"Add a platform"**
@@ -178,25 +198,21 @@ Now that your App Service is created and you have the URL, you **must** go back 
    Replace `<YOUR_APP_NAME>` with your actual Azure App Service name (e.g., `edumcp-server-prod`).
 8. Click **"Configure"** to save
 
-#### If You Already Have a Web Platform Configured:
-1. Under **"Platform configurations"** → **"Web"**, click **"Add URI"**
-2. Enter your redirect URI: `https://<YOUR_APP_NAME>.azurewebsites.net/oauth/callback`
-3. Click **"Save"** at the top of the page
-
-> 💡 **Tip**: For local development, you can also add `http://localhost:3001/oauth/callback` as an additional redirect URI.
-
 ### 5. �📦 Deploy Your Code
 
 #### Option A: External Git (Recommended)
-1. **Azure Portal** → Your App Service → **Deployment Center**
-2. **Source**: External Git
+
+> ⚠️ **Note**: Before deploying, Azure requires SCM Basic Authentication to be enabled.  
+> Go to **App Service** → **Configuration** → **General settings** → **SCM Basic Auth Publishing Credentials** → **On** → click **"Apply"**
+
+Then proceed with the deployment:
+
+1. **Azure Portal** → **App Services** → **[Your App]** → **Deployment** → **Deployment Center**
+2. **Source**: Manual Deployment → **External Git**
 3. **Repository**: `https://github.com/jesegher/EduMCPServer.git`
 4. **Branch**: `main`
 5. **Repository Type**: Public
-6. **Save**
-
-> ⚠️ **Note**: Requires SCM Basic Authentication to be enabled.  
-> Go to **App Service** → **Configuration** → **General settings** → **SCM Basic Auth Publishing Credentials** → **On**
+6. Click **"Save"**
 
 
 #### Option B: VS Code Extension
