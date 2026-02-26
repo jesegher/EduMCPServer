@@ -4,7 +4,7 @@
 
 This project is a custom **Model Context Protocol (MCP) server** built to integrate with **Microsoft Graph API** for Education.
 
-It enables VSCode or Copilot Studio Agents to manage:
+It enables VSCode, Copilot Studio, Claude, and Microsoft AI Foundry agents to manage:
 - ✅ Microsoft Education Classes
 - ✅ Assignments (create, update, target students)
 - ✅ Rubrics (create, attach, list)
@@ -22,7 +22,7 @@ Built for AI-driven tools, testing, and intelligent prompt integration.
 - 📝 Assignment creation, updating, and student targeting
 - 🎓 Rubric creation and re-use
 - 📤 View assignment submissions & outcomes
-- 🧠 Designed for VSCode and Copilot Studio
+- 🧠 Designed for VSCode, Copilot Studio, Claude, and Microsoft AI Foundry
 ---
 ## 📂 Structure
 ### 🔍 Key Components
@@ -239,6 +239,24 @@ Add to your VS Code `mcp.json` (User settings):
 ```
 
 VS Code automatically discovers OAuth configuration via the `/.well-known/oauth-authorization-server` endpoint.
+
+#### Claude (Anthropic):
+
+In Claude's MCP server settings, add a remote MCP server with the URL:
+```
+https://your-app-name.azurewebsites.net/mcp
+```
+
+Claude will use dynamic client registration and OAuth 2.0 automatically.
+
+#### Microsoft AI Foundry:
+
+In your AI Foundry project, add a remote MCP tool with the endpoint:
+```
+https://your-app-name.azurewebsites.net/mcp
+```
+
+Foundry discovers OAuth configuration via the `/.well-known/oauth-authorization-server` endpoint.
 
 ### 7. ✅ Verify Deployment
 
