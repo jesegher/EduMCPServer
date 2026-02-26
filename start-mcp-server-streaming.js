@@ -21,6 +21,7 @@ import registerRubricTools from './Tools/rubric.js';
 import registerClassTools from './Tools/class.js';
 import registerUserTools from './Tools/users.js';
 import registerGroupTools from './Tools/group.js';
+import registerModuleTools from './Tools/module.js';
 import registerAuthTools from './Tools/auth-oauth.js';
 
 const pendingAuthStates = new Set();
@@ -187,6 +188,7 @@ registerRubricTools(server, getAuth);
 registerClassTools(server, getAuth);
 registerUserTools(server, getAuth);
 registerGroupTools(server, getAuth);
+registerModuleTools(server, getAuth);
 
 const app = express();
 
