@@ -48,7 +48,7 @@ const oauthTokens = new Map(); // Store issued OAuth tokens
 const oauthCodes = new Map();  // Store authorization codes
 const oauthRefreshTokens = new Map(); // Store refresh tokens
 
-// Pre-registered OAuth clients - Only VSCode, MCP Inspector and CPS 
+// Pre-registered OAuth clients - VSCode, MCP Inspector, CPS, Claude, and Microsoft AI Foundry
 const oauthClients = {
   'vscode-mcp-client': {
     clientId: 'vscode-mcp-client',
@@ -82,6 +82,23 @@ const oauthClients = {
       'http://127.0.0.1:5173/callback'
     ],
     name: 'MCP Inspector Client'
+  },
+  'claude-ai': {
+    clientId: 'claude-ai',
+    clientSecret: null,
+    redirectUris: [
+      'https://claude.ai/oauth/callback',
+      'https://claude.ai/api/oauth/callback'
+    ],
+    name: 'Claude (Anthropic)'
+  },
+  'microsoft-foundry': {
+    clientId: 'microsoft-foundry',
+    clientSecret: null,
+    redirectUris: [
+      'https://ai.azure.com/oauth/callback' // Pattern - wildcard validated below
+    ],
+    name: 'Microsoft AI Foundry'
   }
 };
 
@@ -93,6 +110,16 @@ const validateClient = (clientId, redirectUri) => {
   if (redirectUri) {
     // Special handling for CPS - accept any Azure APIM redirect URI
     if (clientId === 'mcp-client' && redirectUri.startsWith('https://global.consent.azure-apim.net/redirect/')) {
+      return client;
+    }
+
+    // Special handling for Claude - accept any claude.ai callback URI
+    if (clientId === 'claude-ai' && redirectUri.startsWith('https://claude.ai/')) {
+      return client;
+    }
+
+    // Special handling for Microsoft AI Foundry - accept any ai.azure.com callback URI
+    if (clientId === 'microsoft-foundry' && /^https:\/\/.*\.?ai\.azure\.com\//.test(redirectUri)) {
       return client;
     }
     
@@ -265,6 +292,30 @@ app.post('/oauth/register', (req, res) => {
         client_id: 'mcp-inspector-client',
         client_name: client_name || 'MCP Inspector Client',
         redirect_uris: oauthClients['mcp-inspector-client'].redirectUris,
+        grant_types: ['authorization_code'],
+        response_types: ['code'],
+        token_endpoint_auth_method: 'none'
+      });
+    }
+
+    // For Claude (Anthropic)
+    if (redirect_uris && redirect_uris.some(uri => uri.includes('claude.ai'))) {
+      return res.json({
+        client_id: 'claude-ai',
+        client_name: client_name || 'Claude (Anthropic)',
+        redirect_uris: oauthClients['claude-ai'].redirectUris,
+        grant_types: ['authorization_code'],
+        response_types: ['code'],
+        token_endpoint_auth_method: 'none'
+      });
+    }
+
+    // For Microsoft AI Foundry
+    if (redirect_uris && redirect_uris.some(uri => /.*\.?ai\.azure\.com/.test(uri))) {
+      return res.json({
+        client_id: 'microsoft-foundry',
+        client_name: client_name || 'Microsoft AI Foundry',
+        redirect_uris: redirect_uris,
         grant_types: ['authorization_code'],
         response_types: ['code'],
         token_endpoint_auth_method: 'none'
