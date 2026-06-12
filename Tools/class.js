@@ -9,6 +9,7 @@ function registerClassTools(server, getAuth) {
             classId: z.string().optional().describe("Optional: The ID of the class to retrieve"),
             search: z.string().optional().describe("Optional: Filter classes by display name (contains match)")
         },
+        { readOnlyHint: true },
         async ({ classId, search }) => {
             console.error("📚 class_get tool called");
         

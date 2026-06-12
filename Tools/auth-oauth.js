@@ -5,7 +5,7 @@
 
 export function registerAuthTools(server, getAuth, msalClient, pendingAuthStates, graphScopes) {
   
-  server.tool("auth-status-get", "get the authentication status of the user.", async () => {
+  server.tool("auth-status-get", "get the authentication status of the user.", { readOnlyHint: true }, async () => {
     console.error("🔍 OAuth auth-status-get tool called");
     
     const auth = getAuth(); // Get current request auth

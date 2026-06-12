@@ -10,6 +10,7 @@ function registerModuleTools(server, getAuth) {
       classId: z.string().describe("The ID of the class to get modules from"),
       moduleId: z.string().optional().describe("Optional: The ID of a specific module to retrieve")
     },
+    { readOnlyHint: true },
     async ({ classId, moduleId }) => {
       const auth = getAuth();
       console.error(`📦 module-get tool called [${auth.requestId}] for user ${auth.userId}`);
@@ -106,6 +107,7 @@ function registerModuleTools(server, getAuth) {
       moduleId: z.string().describe("The ID of the module to get resources from"),
       resourceId: z.string().optional().describe("Optional: The ID of a specific resource to retrieve")
     },
+    { readOnlyHint: true },
     async ({ classId, moduleId, resourceId }) => {
       const auth = getAuth();
       console.error(`📂 module-resources-get tool called [${auth.requestId}] for user ${auth.userId}`);

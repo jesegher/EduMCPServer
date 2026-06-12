@@ -136,6 +136,7 @@ server.tool(
   server.tool(
     "rubric_list","Lists all rubrics created by the authenticated user.",
     {},
+    { readOnlyHint: true },
     async () => {
       console.error("📋 rubric_list tool called");
   

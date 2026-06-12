@@ -11,6 +11,7 @@ function registerAssignmentTools(server, getAuth) {
       assignmentId: z.string().optional().describe("The assignment ID to fetch details for (requires classId)"),
       includeRubric: z.boolean().optional().default(true).describe("Whether to attempt retrieving the rubric if grading is null")
     },
+    { readOnlyHint: true },
     async ({ classId, assignmentId, includeRubric }) => {
       const auth = getAuth(); // Get current request auth
       const currentRequestId = auth.requestId;
@@ -163,6 +164,7 @@ function registerAssignmentTools(server, getAuth) {
       classId: z.string().describe("The ID of the class to get assignments from"),
       assignmentId: z.string().describe("The ID of the assignment to get details for"),           
     },
+    { readOnlyHint: true },
     async ({ classId, assignmentId }) => {
       const auth = getAuth(); // Get current request auth
       const currentRequestId = auth.requestId;
@@ -235,6 +237,7 @@ function registerAssignmentTools(server, getAuth) {
       assignmentId: z.string().describe("The ID of the assignment to get details for"),           
       submissionId: z.string().describe("The ID of the submission to get outcome for"),           
     },
+    { readOnlyHint: true },
     async ({ classId, assignmentId, submissionId }) => {
       const auth = getAuth(); // Get current request auth
       const currentRequestId = auth.requestId;

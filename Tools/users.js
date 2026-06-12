@@ -7,7 +7,7 @@ function registerUserTools(server, getAuth) {
     userId: z.string().optional().nullable(),
     userPrincipalName: z.string().optional().nullable(),
     search: z.string().optional().nullable()
-  }, async ({ userId, userPrincipalName, search }) => {
+  }, { readOnlyHint: true }, async ({ userId, userPrincipalName, search }) => {
     console.error("🔍 get-user tool called");
   
     const auth = getAuth(); // Get current request auth
@@ -124,7 +124,7 @@ function registerUserTools(server, getAuth) {
 server.tool("user-attributes-select-get", "Retrieves only specific attributes from Entra ID. Specify which fields you need (e.g., displayName, jobTitle, skills, AgeGroup).", {
   userId: z.string().optional(),
   fields: z.array(z.string()).describe("List of field names to retrieve (e.g., displayName, userPrincipalName, jobTitle)")
-}, async ({ userId, fields }) => {
+}, { readOnlyHint: true }, async ({ userId, fields }) => {
   console.error("🎯 user-attributes-select-get called with:", fields);
 
   const auth = getAuth(); // Get current request auth
@@ -242,7 +242,7 @@ server.tool("user-update", "Updates a user based on userId. Only fields included
    
 server.tool("user-groups-get", "Fetches the groups a user belongs to based on userId.", {
   userId: z.string()
-}, async ({ userId }) => {
+}, { readOnlyHint: true }, async ({ userId }) => {
   console.error("👥 user-groups-get tool called");
 
   const auth = getAuth(); // Get current request auth

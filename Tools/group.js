@@ -7,7 +7,7 @@ function registerGroupTools(server, getAuth) {
   server.tool("group-get", "Fetches a group based on groupId or display name.", {
     groupId: z.string().optional(),
     displayName: z.string().optional()
-  }, async ({ groupId, displayName }) => {
+  }, { readOnlyHint: true }, async ({ groupId, displayName }) => {
     console.error("🔍 group-get tool called");
 
     const auth = getAuth(); // Get current request auth
@@ -145,7 +145,7 @@ function registerGroupTools(server, getAuth) {
   // Tool to fetch members of a group
   server.tool("group-members-get", "Fetches the members of a group based on groupId.", {
     groupId: z.string()
-  }, async ({ groupId }) => {
+  }, { readOnlyHint: true }, async ({ groupId }) => {
     console.error("👥 group-members-get tool called");
 
     const auth = getAuth(); // Get current request auth
